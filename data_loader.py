@@ -6,6 +6,10 @@ import torch
 import os
 import random
 
+import dlib
+import cv2
+import numpy as np
+
 
 class CelebA(data.Dataset):
     """Dataset class for the CelebA dataset."""
@@ -67,6 +71,133 @@ class CelebA(data.Dataset):
         """Return the number of images."""
         return self.num_images
 
+class MT(data.Dataset):
+    """Dataset class for the Makeup Transfer dataset."""
+
+    def __init__(self, image_dir, attr_path, transform, mode):
+        """Initialize and preprocess the Makeup Transfer dataset."""
+        self.image_dir = image_dir
+        self.attr_path = attr_path
+        self.transform = transform
+        self.mode = mode
+        self.train_dataset = []
+        self.test_dataset = []
+        self.attr2idx = {}
+        self.idx2attr = {}
+        self.predictor = dlib.shape_predictor("./pretrained_model/shape_predictor_68_face_landmarks.dat")
+        self.preprocess()
+
+        if mode == 'train':
+            self.num_images = len(self.train_dataset)
+        else:
+            self.num_images = len(self.test_dataset)
+
+    def get_lips_color(self, image_path):
+        # Load the pre-trained face detector
+        detector = dlib.get_frontal_face_detector()
+        image = cv2.imread(image_path)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        faces = detector(gray)
+        if len(faces) == 0:
+            print(image_path)
+            return (0, 0, 0)
+
+        for face in faces:
+            # Predict facial landmarks
+            landmarks = self.predictor(gray, face)
+            lips = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(48, 61)]
+            mask = np.zeros(image.shape[:2], dtype="uint8")
+            cv2.fillPoly(mask, [np.array(lips)], (255, 255, 255))
+            
+            average_color = cv2.mean(image, mask=mask)
+            average_color_bgr = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
+
+        if len(faces) == 0:
+            height, width = image.shape[:2]
+            square_size = min(height, width) // 5
+
+            top_left_x = (width - square_size) // 2
+            top_left_y = (height - square_size) // 2 + square_size
+            bottom_right_x = top_left_x + square_size//2
+            bottom_right_y = top_left_y + square_size//2
+
+            square_roi = image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
+
+            average_color = cv2.mean(square_roi)
+            average_color_bgr = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
+
+        return average_color_bgr
+    
+    def get_skin_color(self, image_path):
+        # Load the pre-trained face detector
+        detector = dlib.get_frontal_face_detector()
+        image = cv2.imread(image_path)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        faces = detector(gray)
+
+        for face in faces:
+            # Predict facial landmarks
+            landmarks = self.predictor(gray, face)
+            facepts = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(1, 16)]
+            mask = np.zeros(image.shape[:2], dtype="uint8")
+            cv2.fillPoly(mask, [np.array(facepts)], (255, 255, 255))
+            # Exclude lips region (landmarks 48-60)
+            lips = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(48, 61)]
+            cv2.fillPoly(mask, [np.array(lips)], (0, 0, 0))
+
+            average_color = cv2.mean(image, mask=mask)
+            average_color_bgr = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
+
+        if len(faces) == 0:
+            height, width = image.shape[:2]
+            square_size = min(height, width) // 5
+
+            top_left_x = (width - square_size) // 2
+            top_left_y = (height - square_size) // 2 
+            bottom_right_x = top_left_x + square_size
+            bottom_right_y = top_left_y + square_size
+            square_roi = image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
+
+            average_color = cv2.mean(square_roi)
+            average_color_bgr = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
+
+        return average_color_bgr
+
+    def preprocess(self):
+        """Preprocess the Makeup Transfer file."""
+        lines = [line.rstrip() for line in open(self.attr_path, 'r')]
+        all_file_names = lines
+        for i, file_name in enumerate(all_file_names):
+            self.attr2idx[file_name] = i
+            self.idx2attr[i] = file_name
+
+        random.seed(1234)
+        random.shuffle(lines)
+        for i, filename in enumerate(all_file_names):
+
+            lips_bgr_label = self.get_lips_color(self.image_dir+'/'+filename)
+            skin_bgr_label = self.get_skin_color(self.image_dir+'/'+filename)
+            label = [lips_bgr_label, skin_bgr_label]
+            print(filename,label)
+            if (i+1) < 2000:
+                self.test_dataset.append([filename, label])
+            else:
+                self.train_dataset.append([filename, label])
+        print('Finished preprocessing the Makeup Transfer dataset...')
+
+    def __getitem__(self, index):
+        """Return one image and its corresponding attribute label."""
+        dataset = self.train_dataset if self.mode == 'train' else self.test_dataset
+        filename, label = dataset[index]
+        image = Image.open(os.path.join(self.image_dir, filename))
+        return self.transform(image), torch.FloatTensor(label)
+
+    def __len__(self):
+        """Return the number of images."""
+        return self.num_images
+    
 
 def get_loader(image_dir, attr_path, selected_attrs, crop_size=178, image_size=128, 
                batch_size=16, dataset='CelebA', mode='train', num_workers=1):
@@ -82,6 +213,8 @@ def get_loader(image_dir, attr_path, selected_attrs, crop_size=178, image_size=1
 
     if dataset == 'CelebA':
         dataset = CelebA(image_dir, attr_path, selected_attrs, transform, mode)
+    elif dataset == 'MT':
+        dataset = MT(image_dir, attr_path, selected_attrs, transform, mode)
     elif dataset == 'RaFD':
         dataset = ImageFolder(image_dir, transform)
 

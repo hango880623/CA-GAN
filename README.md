@@ -1,4 +1,4 @@
-## StarGAN - Official PyTorch Implementation
+## CAGAN - Reproduce
 
 **\*\*\*\*\* New: StarGAN v2 is available at https://github.com/clovaai/stargan-v2 \*\*\*\*\***
 

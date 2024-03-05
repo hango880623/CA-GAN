@@ -34,18 +34,22 @@ def main(config):
         rafd_loader = get_loader(config.rafd_image_dir, None, None,
                                  config.rafd_crop_size, config.image_size, config.batch_size,
                                  'RaFD', config.mode, config.num_workers)
+    if config.dataset in ['MT', 'Both']:
+        celeba_loader = get_loader(config.celeba_image_dir, config.attr_path, config.selected_attrs,
+                                   config.celeba_crop_size, config.image_size, config.batch_size,
+                                   'MT', config.mode, config.num_workers)
     
 
     # Solver for training and testing StarGAN.
     solver = Solver(celeba_loader, rafd_loader, config)
 
     if config.mode == 'train':
-        if config.dataset in ['CelebA', 'RaFD']:
+        if config.dataset in ['CelebA', 'MT', 'RaFD']:
             solver.train()
         elif config.dataset in ['Both']:
             solver.train_multi()
     elif config.mode == 'test':
-        if config.dataset in ['CelebA', 'RaFD']:
+        if config.dataset in ['CelebA', 'MT','RaFD']:
             solver.test()
         elif config.dataset in ['Both']:
             solver.test_multi()

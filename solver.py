@@ -10,6 +10,7 @@ import time
 import datetime
 
 
+
 class Solver(object):
     """Solver for training and testing StarGAN."""
 
@@ -71,7 +72,7 @@ class Solver(object):
 
     def build_model(self):
         """Create a generator and a discriminator."""
-        if self.dataset in ['CelebA', 'RaFD']:
+        if self.dataset in ['CelebA', 'CelebA', 'RaFD']:
             self.G = Generator(self.g_conv_dim, self.c_dim, self.g_repeat_num)
             self.D = Discriminator(self.image_size, self.d_conv_dim, self.c_dim, self.d_repeat_num) 
         elif self.dataset in ['Both']:
@@ -184,6 +185,8 @@ class Solver(object):
         # Set data loader.
         if self.dataset == 'CelebA':
             data_loader = self.celeba_loader
+        elif self.dataset == 'MT':
+            data_loader = self.mt_loader
         elif self.dataset == 'RaFD':
             data_loader = self.rafd_loader
 
