@@ -9,6 +9,9 @@ import os
 import time
 import datetime
 
+from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
+
+
 
 
 class Solver(object):
@@ -179,6 +182,15 @@ class Solver(object):
             return F.binary_cross_entropy_with_logits(logit, target, size_average=False) / logit.size(0)
         elif dataset == 'RaFD':
             return F.cross_entropy(logit, target)
+        
+    def color_distance_loss(self, logit, target):
+        """Compute MSE loss of LAB color space."""
+        return F.mse_loss(logit, target)
+    
+    def mssim_loss(self, logit, target):
+        """Compute multiscale structural similarity loss of the generative image."""
+        ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(data_range=1.0)
+        return 1 - ms_ssim(logit, target)
 
     def train(self):
         """Train StarGAN within a single dataset."""
@@ -193,9 +205,11 @@ class Solver(object):
         # Fetch fixed inputs for debugging.
         data_iter = iter(data_loader)
         x_fixed, c_org = next(data_iter)
+        x_target, c_target = next(data_iter)
         x_fixed = x_fixed.to(self.device)
-        c_fixed_list = self.create_labels(c_org, self.c_dim, self.dataset, self.selected_attrs)
+        c_fixed_list = c_target
 
+        label_trg = c_org
         # Learning rate cache for decaying.
         g_lr = self.g_lr
         d_lr = self.d_lr
@@ -222,9 +236,9 @@ class Solver(object):
                 data_iter = iter(data_loader)
                 x_real, label_org = next(data_iter)
 
-            # Generate target domain labels randomly.
-            rand_idx = torch.randperm(label_org.size(0))
-            label_trg = label_org[rand_idx]
+            # # Generate target domain labels randomly.
+            # rand_idx = torch.randperm(label_org.size(0)) # for random [0,n]
+            # label_trg = label_org[rand_idx]
 
             if self.dataset == 'CelebA':
                 c_org = label_org.clone()
@@ -244,13 +258,13 @@ class Solver(object):
             # =================================================================================== #
 
             # Compute loss with real images.
-            out_src, out_cls = self.D(x_real)
+            out_src, out_cls, out_cls_1 = self.D(x_real)
             d_loss_real = - torch.mean(out_src)
-            d_loss_cls = self.classification_loss(out_cls, label_org, self.dataset)
-
+            d_loss_cls = self.color_distance_loss_loss(out_cls, label_org[0], self.dataset) # label_org[0] = lips lab color
+            d_loss_cls_1 = self.color_distance_loss_loss(out_cls_1, label_org[1], self.dataset) # label_org[1] = skin lab color
             # Compute loss with fake images.
             x_fake = self.G(x_real, c_trg)
-            out_src, out_cls = self.D(x_fake.detach())
+            out_src, out_cls, out_cls_1 = self.D(x_fake.detach())
             d_loss_fake = torch.mean(out_src)
 
             # Compute loss for gradient penalty.
@@ -260,7 +274,7 @@ class Solver(object):
             d_loss_gp = self.gradient_penalty(out_src, x_hat)
 
             # Backward and optimize.
-            d_loss = d_loss_real + d_loss_fake + self.lambda_cls * d_loss_cls + self.lambda_gp * d_loss_gp
+            d_loss = d_loss_real + d_loss_fake + self.lambda_cls * d_loss_cls + self.lambda_cls * d_loss_cls_1 + self.lambda_gp * d_loss_gp
             self.reset_grad()
             d_loss.backward()
             self.d_optimizer.step()
@@ -279,16 +293,18 @@ class Solver(object):
             if (i+1) % self.n_critic == 0:
                 # Original-to-target domain.
                 x_fake = self.G(x_real, c_trg)
-                out_src, out_cls = self.D(x_fake)
+                out_src, out_cls, out_cls_1 = self.D(x_fake)
                 g_loss_fake = - torch.mean(out_src)
-                g_loss_cls = self.classification_loss(out_cls, label_trg, self.dataset)
+                g_loss_cls = self.color_distance_loss_loss(out_cls, label_org[0], self.dataset) # label_org[0] = lips lab color
+                g_loss_cls_1 = self.color_distance_loss_loss(out_cls_1, label_org[1], self.dataset) # label_org[1] = skin lab color
 
                 # Target-to-original domain.
-                x_reconst = self.G(x_fake, c_org)
-                g_loss_rec = torch.mean(torch.abs(x_real - x_reconst))
+                x_reconst = self.G(x_fake, c_org[0])
+                # g_loss_rec = torch.mean(torch.abs(x_real - x_reconst))
+                g_loss_rec = self.mssim_loss(x_real, x_reconst)
 
                 # Backward and optimize.
-                g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls
+                g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls + self.lambda_cls * g_loss_cls_1
                 self.reset_grad()
                 g_loss.backward()
                 self.g_optimizer.step()
@@ -321,6 +337,7 @@ class Solver(object):
                     x_fake_list = [x_fixed]
                     for c_fixed in c_fixed_list:
                         x_fake_list.append(self.G(x_fixed, c_fixed))
+                    x_fake_list.append(x_target)
                     x_concat = torch.cat(x_fake_list, dim=3)
                     sample_path = os.path.join(self.sample_dir, '{}-images.jpg'.format(i+1))
                     save_image(self.denorm(x_concat.data.cpu()), sample_path, nrow=1, padding=0)
@@ -340,6 +357,9 @@ class Solver(object):
                 d_lr -= (self.d_lr / float(self.num_iters_decay))
                 self.update_lr(g_lr, d_lr)
                 print ('Decayed learning rates, g_lr: {}, d_lr: {}.'.format(g_lr, d_lr))
+            
+            # Update target color
+            label_trg = label_org    
 
     def train_multi(self):
         """Train StarGAN with multiple datasets."""        

@@ -17,14 +17,14 @@ def get_skin_color(image_path):
     image = cv2.imread(image_path)
 
     # Convert the image to grayscale
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Detect faces in the grayscale image
-    faces = detector(gray)
+    faces = detector(image)
 
     for face in faces:
         # Predict facial landmarks
-        landmarks = predictor(gray, face)
+        landmarks = predictor(image, face)
         
         # Extract face points (usually landmarks 1-15)
         facepts = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(1, 16)]
@@ -181,8 +181,8 @@ def test_MT():
     dataset = MT(image_dir="./mtdataset/images/makeup", attr_path="./mtdataset/makeuptest.txt",transform = transform,mode = "train")
                  
 if __name__ == '__main__':
-    get_lips_color("./mtdataset/images/makeup/vHX118.png")
-    get_skin_color("./mtdataset/images/makeup/vHX118.png")
+    get_lips_color("./mtdataset/images/makeup/vFG99.png")
+    get_skin_color("./mtdataset/images/makeup/vFG99.png")
     # save_filenames_to_txt("./mtdataset/images/makeup", "./mtdataset/makeup.txt")
     # save_filenames_to_txt("./mtdataset/images/non-makeup", "./mtdataset/non-makeup.txt")
-    test_MT()
+    # test_MT()

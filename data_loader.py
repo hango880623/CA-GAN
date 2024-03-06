@@ -57,6 +57,7 @@ class CelebA(data.Dataset):
                 self.test_dataset.append([filename, label])
             else:
                 self.train_dataset.append([filename, label])
+                self.train_dataset.append([filename, label])
 
         print('Finished preprocessing the CelebA dataset...')
 
@@ -110,8 +111,9 @@ class MT(data.Dataset):
             mask = np.zeros(image.shape[:2], dtype="uint8")
             cv2.fillPoly(mask, [np.array(lips)], (255, 255, 255))
             
-            average_color = cv2.mean(image, mask=mask)
-            average_color_bgr = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
+            image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+            average_color = cv2.mean(image_lab, mask=mask)
+            average_color_lab = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
 
         if len(faces) == 0:
             height, width = image.shape[:2]
@@ -123,11 +125,11 @@ class MT(data.Dataset):
             bottom_right_y = top_left_y + square_size//2
 
             square_roi = image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
+            square_lab = cv2.cvtColor(square_roi, cv2.COLOR_BGR2LAB)
+            average_color = cv2.mean(square_lab)
+            average_color_lab = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
 
-            average_color = cv2.mean(square_roi)
-            average_color_bgr = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
-
-        return average_color_bgr
+        return average_color_lab
     
     def get_skin_color(self, image_path):
         # Load the pre-trained face detector
@@ -147,8 +149,9 @@ class MT(data.Dataset):
             lips = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(48, 61)]
             cv2.fillPoly(mask, [np.array(lips)], (0, 0, 0))
 
-            average_color = cv2.mean(image, mask=mask)
-            average_color_bgr = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
+            image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+            average_color = cv2.mean(image_lab, mask=mask)
+            average_color_lab = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
 
         if len(faces) == 0:
             height, width = image.shape[:2]
@@ -159,11 +162,11 @@ class MT(data.Dataset):
             bottom_right_x = top_left_x + square_size
             bottom_right_y = top_left_y + square_size
             square_roi = image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
+            square_lab = cv2.cvtColor(square_roi, cv2.COLOR_BGR2LAB)
+            average_color = cv2.mean(square_lab)
+            average_color_lab = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
 
-            average_color = cv2.mean(square_roi)
-            average_color_bgr = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
-
-        return average_color_bgr
+        return average_color_lab
 
     def preprocess(self):
         """Preprocess the Makeup Transfer file."""
@@ -177,9 +180,9 @@ class MT(data.Dataset):
         random.shuffle(lines)
         for i, filename in enumerate(all_file_names):
 
-            lips_bgr_label = self.get_lips_color(self.image_dir+'/'+filename)
-            skin_bgr_label = self.get_skin_color(self.image_dir+'/'+filename)
-            label = [lips_bgr_label, skin_bgr_label]
+            cm_label = self.get_lips_color(self.image_dir+'/'+filename)
+            cs_label = self.get_skin_color(self.image_dir+'/'+filename)
+            label = [cm_label, cs_label]
             print(filename,label)
             if (i+1) < 2000:
                 self.test_dataset.append([filename, label])
