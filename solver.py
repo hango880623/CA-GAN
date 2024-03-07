@@ -17,12 +17,13 @@ from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 class Solver(object):
     """Solver for training and testing StarGAN."""
 
-    def __init__(self, celeba_loader, rafd_loader, config):
+    def __init__(self, celeba_loader, rafd_loader, mt_loader, config):
         """Initialize configurations."""
 
         # Data loader.
         self.celeba_loader = celeba_loader
         self.rafd_loader = rafd_loader
+        self.mt_loader = mt_loader
 
         # Model configurations.
         self.c_dim = config.c_dim
@@ -75,7 +76,7 @@ class Solver(object):
 
     def build_model(self):
         """Create a generator and a discriminator."""
-        if self.dataset in ['CelebA', 'CelebA', 'RaFD']:
+        if self.dataset in ['CelebA', 'MT', 'RaFD']:
             self.G = Generator(self.g_conv_dim, self.c_dim, self.g_repeat_num)
             self.D = Discriminator(self.image_size, self.d_conv_dim, self.c_dim, self.d_repeat_num) 
         elif self.dataset in ['Both']:

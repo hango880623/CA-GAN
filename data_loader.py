@@ -5,11 +5,14 @@ from PIL import Image
 import torch
 import os
 import random
+from sklearn.model_selection import train_test_split
 
 import dlib
 import cv2
 import numpy as np
 
+import csv
+from tqdm import tqdm
 
 class CelebA(data.Dataset):
     """Dataset class for the CelebA dataset."""
@@ -75,11 +78,13 @@ class CelebA(data.Dataset):
 class MT(data.Dataset):
     """Dataset class for the Makeup Transfer dataset."""
 
-    def __init__(self, image_dir, attr_path, transform, mode):
+    def __init__(self, image_dir, attr_path,train_label, test_label, transform, mode):
         """Initialize and preprocess the Makeup Transfer dataset."""
         self.image_dir = image_dir
         self.attr_path = attr_path
         self.transform = transform
+        self.train_label = train_label
+        self.test_label = test_label
         self.mode = mode
         self.train_dataset = []
         self.test_dataset = []
@@ -100,9 +105,6 @@ class MT(data.Dataset):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         faces = detector(gray)
-        if len(faces) == 0:
-            print(image_path)
-            return (0, 0, 0)
 
         for face in faces:
             # Predict facial landmarks
@@ -113,7 +115,7 @@ class MT(data.Dataset):
             
             image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
             average_color = cv2.mean(image_lab, mask=mask)
-            average_color_lab = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
+            average_color_lab = [int(average_color[0]), int(average_color[1]), int(average_color[2])]
 
         if len(faces) == 0:
             height, width = image.shape[:2]
@@ -127,7 +129,7 @@ class MT(data.Dataset):
             square_roi = image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
             square_lab = cv2.cvtColor(square_roi, cv2.COLOR_BGR2LAB)
             average_color = cv2.mean(square_lab)
-            average_color_lab = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
+            average_color_lab = [int(average_color[0]), int(average_color[1]), int(average_color[2])]
 
         return average_color_lab
     
@@ -151,7 +153,7 @@ class MT(data.Dataset):
 
             image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
             average_color = cv2.mean(image_lab, mask=mask)
-            average_color_lab = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
+            average_color_lab = [int(average_color[0]), int(average_color[1]), int(average_color[2])]
 
         if len(faces) == 0:
             height, width = image.shape[:2]
@@ -164,11 +166,17 @@ class MT(data.Dataset):
             square_roi = image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
             square_lab = cv2.cvtColor(square_roi, cv2.COLOR_BGR2LAB)
             average_color = cv2.mean(square_lab)
-            average_color_lab = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
+            average_color_lab = [int(average_color[0]), int(average_color[1]), int(average_color[2])]
 
         return average_color_lab
 
     def preprocess(self):
+        if os.path.exists(self.train_label) and os.path.exists(self.test_label):
+            print('Loading existing datasets...')
+            self.load_datasets()
+            print('Datasets loaded successfully.')
+            return
+
         """Preprocess the Makeup Transfer file."""
         lines = [line.rstrip() for line in open(self.attr_path, 'r')]
         all_file_names = lines
@@ -177,18 +185,54 @@ class MT(data.Dataset):
             self.idx2attr[i] = file_name
 
         random.seed(1234)
-        random.shuffle(lines)
-        for i, filename in enumerate(all_file_names):
+        train_files, test_files = train_test_split(all_file_names, test_size=0.2, random_state=1234)
+        for i, filename in enumerate(tqdm(all_file_names)):
 
             cm_label = self.get_lips_color(self.image_dir+'/'+filename)
             cs_label = self.get_skin_color(self.image_dir+'/'+filename)
             label = [cm_label, cs_label]
-            print(filename,label)
-            if (i+1) < 2000:
+            if filename in test_files:
                 self.test_dataset.append([filename, label])
             else:
                 self.train_dataset.append([filename, label])
         print('Finished preprocessing the Makeup Transfer dataset...')
+        # Save the datasets
+        self.save_datasets()
+        print('Datasets saved successfully.')
+
+    def save_datasets(self):
+        # Save train dataset
+        with open(self.train_label, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Filename', 'Lips_Color', 'Skin_Color'])
+            for item in self.train_dataset:
+                writer.writerow([item[0], *[list(color) for color in item[1]]])
+
+        # Save test dataset
+        with open(self.test_label, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Filename', 'Lips_Color', 'Skin_Color'])
+            for item in self.test_dataset:
+                writer.writerow([item[0], *[list(color) for color in item[1]]])
+
+    def load_datasets(self):
+        # Load train dataset
+        with open(self.train_label, 'r', newline='') as f:
+            reader = csv.reader(f)
+            next(reader)  # Skip header row
+            for row in reader:
+                lips_colors = [int(x) for x in row[1].strip('[]').split(',')]
+                skin_colors = [int(x) for x in row[2].strip('[]').split(',')]
+                self.train_dataset.append([row[0],[lips_colors,skin_colors]])
+
+        # Load test dataset
+        with open(self.test_label, 'r', newline='') as f:
+            reader = csv.reader(f)
+            next(reader)  # Skip header row
+            for row in reader:
+                lips_colors = [int(x) for x in row[1].strip('[]').split(',')]
+                skin_colors = [int(x) for x in row[2].strip('[]').split(',')]
+                self.test_dataset.append([row[0],[lips_colors,skin_colors]])
 
     def __getitem__(self, index):
         """Return one image and its corresponding attribute label."""
@@ -202,7 +246,7 @@ class MT(data.Dataset):
         return self.num_images
     
 
-def get_loader(image_dir, attr_path, selected_attrs, crop_size=178, image_size=128, 
+def get_loader(image_dir, attr_path, train_label, test_label, selected_attrs, crop_size=178, image_size=128, 
                batch_size=16, dataset='CelebA', mode='train', num_workers=1):
     """Build and return a data loader."""
     transform = []
@@ -217,7 +261,7 @@ def get_loader(image_dir, attr_path, selected_attrs, crop_size=178, image_size=1
     if dataset == 'CelebA':
         dataset = CelebA(image_dir, attr_path, selected_attrs, transform, mode)
     elif dataset == 'MT':
-        dataset = MT(image_dir, attr_path, selected_attrs, transform, mode)
+        dataset = MT(image_dir, attr_path, train_label, test_label, transform, mode)
     elif dataset == 'RaFD':
         dataset = ImageFolder(image_dir, transform)
 

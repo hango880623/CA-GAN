@@ -35,13 +35,13 @@ def main(config):
                                  config.rafd_crop_size, config.image_size, config.batch_size,
                                  'RaFD', config.mode, config.num_workers)
     if config.dataset in ['MT', 'Both']:
-        celeba_loader = get_loader(config.celeba_image_dir, config.attr_path, config.selected_attrs,
+        mt_loader = get_loader(config.mt_image_dir, config.attr_path, config.train_label,config.test_label,None,
                                    config.celeba_crop_size, config.image_size, config.batch_size,
                                    'MT', config.mode, config.num_workers)
     
 
     # Solver for training and testing StarGAN.
-    solver = Solver(celeba_loader, rafd_loader, config)
+    solver = Solver(celeba_loader, rafd_loader, mt_loader, config)
 
     if config.mode == 'train':
         if config.dataset in ['CelebA', 'MT', 'RaFD']:
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     parser.add_argument('--lambda_gp', type=float, default=10, help='weight for gradient penalty')
     
     # Training configuration.
-    parser.add_argument('--dataset', type=str, default='CelebA', choices=['CelebA', 'RaFD', 'Both'])
+    parser.add_argument('--dataset', type=str, default='CelebA', choices=['CelebA', 'RaFD', 'MT', 'Both'])
     parser.add_argument('--batch_size', type=int, default=16, help='mini-batch size')
     parser.add_argument('--num_iters', type=int, default=200000, help='number of total iterations for training D')
     parser.add_argument('--num_iters_decay', type=int, default=100000, help='number of iterations for decaying lr')
@@ -95,8 +95,11 @@ if __name__ == '__main__':
     parser.add_argument('--use_tensorboard', type=str2bool, default=True)
 
     # Directories.
+    parser.add_argument('--mt_image_dir', type=str, default='data/mt/images/makeup')
     parser.add_argument('--celeba_image_dir', type=str, default='data/celeba/images')
-    parser.add_argument('--attr_path', type=str, default='data/celeba/list_attr_celeba.txt')
+    parser.add_argument('--attr_path', type=str, default='data/mt/makeup.txt')
+    parser.add_argument('--train_label', type=str, default='data/mt/train_label.csv')
+    parser.add_argument('--test_label', type=str, default='data/mt/test_label.csv')
     parser.add_argument('--rafd_image_dir', type=str, default='data/RaFD/train')
     parser.add_argument('--log_dir', type=str, default='stargan/logs')
     parser.add_argument('--model_save_dir', type=str, default='stargan/models')
