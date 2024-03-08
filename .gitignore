@@ -6,3 +6,5 @@
 
 # Ignore the pretrained_model directory
 /pretrained_model
+
+/cagan_mt

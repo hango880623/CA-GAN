@@ -10,4 +10,7 @@ python main.py \
     --model_save_dir cagan_mt/models \
     --result_dir cagan_mt/results \
     --attr_path data/mt/makeup.txt \
-    --mt_image_dir data/mt/images/makeup
+    --mt_image_dir data/mt/images/makeup \
+    --sample_step 1000 \
+    --celeba_crop_size 192 \
+    --model_save_step 5000
