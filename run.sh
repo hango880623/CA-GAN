@@ -13,4 +13,7 @@ python main.py \
     --mt_image_dir data/mt/images/makeup \
     --sample_step 1000 \
     --celeba_crop_size 192 \
-    --model_save_step 5000
+    --model_save_step 5000 \
+    --resume_iters 45000 \
+    --lambda_cls 0.01 \
+    --num_workers 2
