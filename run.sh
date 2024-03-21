@@ -19,5 +19,5 @@ python main.py \
     --lambda_rec 200 \
     --lambda_gp 10 \
     --lambda_bkg 10 \
-    --num_workers 2 \ 
+    --num_workers 2 
     
