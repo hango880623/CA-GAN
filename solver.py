@@ -295,7 +295,7 @@ class Solver(object):
             d_loss_gp = self.gradient_penalty(out_src, x_hat)
 
             # Backward and optimize.
-            d_loss = d_loss_real + d_loss_fake + self.lambda_cls * d_loss_cls + self.lambda_cls * d_loss_cls_1 + self.lambda_gp * d_loss_gp
+            d_loss = d_loss_real + d_loss_fake + self.lambda_cls * d_loss_cls + self.lambda_bkg * d_loss_cls_1 + self.lambda_gp * d_loss_gp
             self.reset_grad()
             d_loss.backward()
             self.d_optimizer.step()
@@ -325,7 +325,7 @@ class Solver(object):
                 g_loss_rec = self.mssim_loss(x_real, x_reconst)
 
                 # Backward and optimize.
-                g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls + self.lambda_cls * g_loss_cls_1
+                g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls + self.lambda_bkg * g_loss_cls_1
                 self.reset_grad()
                 g_loss.backward()
                 self.g_optimizer.step()
