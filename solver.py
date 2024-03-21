@@ -36,6 +36,7 @@ class Solver(object):
         self.lambda_cls = config.lambda_cls
         self.lambda_rec = config.lambda_rec
         self.lambda_gp = config.lambda_gp
+        self.lambda_bkg = config.lambda_bkg
 
         # Training configurations.
         self.dataset = config.dataset
