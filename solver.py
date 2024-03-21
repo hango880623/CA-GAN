@@ -10,19 +10,20 @@ import time
 import datetime
 
 from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
-
+from tqdm import tqdm
 
 
 
 class Solver(object):
     """Solver for training and testing StarGAN."""
 
-    def __init__(self, celeba_loader, rafd_loader, config):
+    def __init__(self, celeba_loader, rafd_loader, mt_loader, config):
         """Initialize configurations."""
 
         # Data loader.
         self.celeba_loader = celeba_loader
         self.rafd_loader = rafd_loader
+        self.mt_loader = mt_loader
 
         # Model configurations.
         self.c_dim = config.c_dim
@@ -35,6 +36,7 @@ class Solver(object):
         self.lambda_cls = config.lambda_cls
         self.lambda_rec = config.lambda_rec
         self.lambda_gp = config.lambda_gp
+        self.lambda_bkg = config.lambda_bkg
 
         # Training configurations.
         self.dataset = config.dataset
@@ -54,7 +56,7 @@ class Solver(object):
 
         # Miscellaneous.
         self.use_tensorboard = config.use_tensorboard
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.select_device()
 
         # Directories.
         self.log_dir = config.log_dir
@@ -73,9 +75,16 @@ class Solver(object):
         if self.use_tensorboard:
             self.build_tensorboard()
 
+    def select_device(self):
+        if torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+        else:
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print("Using device: ", self.device)
+
     def build_model(self):
         """Create a generator and a discriminator."""
-        if self.dataset in ['CelebA', 'CelebA', 'RaFD']:
+        if self.dataset in ['CelebA', 'MT', 'RaFD']:
             self.G = Generator(self.g_conv_dim, self.c_dim, self.g_repeat_num)
             self.D = Discriminator(self.image_size, self.d_conv_dim, self.c_dim, self.d_repeat_num) 
         elif self.dataset in ['Both']:
@@ -189,7 +198,7 @@ class Solver(object):
     
     def mssim_loss(self, logit, target):
         """Compute multiscale structural similarity loss of the generative image."""
-        ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(data_range=1.0)
+        ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(kernel_size=5).to(self.device)
         return 1 - ms_ssim(logit, target)
 
     def train(self):
@@ -207,7 +216,8 @@ class Solver(object):
         x_fixed, c_org = next(data_iter)
         x_target, c_target = next(data_iter)
         x_fixed = x_fixed.to(self.device)
-        c_fixed_list = c_target
+        x_target = x_target.to(self.device)
+        c_target = c_target.to(self.device)
 
         label_trg = c_org
         # Learning rate cache for decaying.
@@ -223,7 +233,7 @@ class Solver(object):
         # Start training.
         print('Start training...')
         start_time = time.time()
-        for i in range(start_iters, self.num_iters):
+        for i in tqdm(range(start_iters, self.num_iters)):
 
             # =================================================================================== #
             #                             1. Preprocess input data                                #
@@ -236,6 +246,14 @@ class Solver(object):
                 data_iter = iter(data_loader)
                 x_real, label_org = next(data_iter)
 
+            # make sure the size of label_trg == label_org
+            if len(label_trg) > len(label_org):
+                label_trg = label_trg[:len(label_org)]
+            elif len(label_trg) < len(label_org):
+                label_org = label_org[:len(label_trg)]
+                x_real = x_real[:len(label_trg)]
+                    
+
             # # Generate target domain labels randomly.
             # rand_idx = torch.randperm(label_org.size(0)) # for random [0,n]
             # label_trg = label_org[rand_idx]
@@ -246,6 +264,9 @@ class Solver(object):
             elif self.dataset == 'RaFD':
                 c_org = self.label2onehot(label_org, self.c_dim)
                 c_trg = self.label2onehot(label_trg, self.c_dim)
+            elif self.dataset == 'MT':
+                c_org = label_org.clone()
+                c_trg = label_trg.clone()
 
             x_real = x_real.to(self.device)           # Input images.
             c_org = c_org.to(self.device)             # Original domain labels.
@@ -260,21 +281,21 @@ class Solver(object):
             # Compute loss with real images.
             out_src, out_cls, out_cls_1 = self.D(x_real)
             d_loss_real = - torch.mean(out_src)
-            d_loss_cls = self.color_distance_loss_loss(out_cls, label_org[0], self.dataset) # label_org[0] = lips lab color
-            d_loss_cls_1 = self.color_distance_loss_loss(out_cls_1, label_org[1], self.dataset) # label_org[1] = skin lab color
+            d_loss_cls = self.color_distance_loss(out_cls, label_org[:, 0, :]) # label[0] = lips lab color
+            d_loss_cls_1 = self.color_distance_loss(out_cls_1, label_org[:, 1, :]) # label[1] = skin lab color
             # Compute loss with fake images.
-            x_fake = self.G(x_real, c_trg)
+            x_fake = self.G(x_real, c_trg[:, 0, :])
             out_src, out_cls, out_cls_1 = self.D(x_fake.detach())
             d_loss_fake = torch.mean(out_src)
 
             # Compute loss for gradient penalty.
             alpha = torch.rand(x_real.size(0), 1, 1, 1).to(self.device)
             x_hat = (alpha * x_real.data + (1 - alpha) * x_fake.data).requires_grad_(True)
-            out_src, _ = self.D(x_hat)
+            out_src, _, _ = self.D(x_hat)
             d_loss_gp = self.gradient_penalty(out_src, x_hat)
 
             # Backward and optimize.
-            d_loss = d_loss_real + d_loss_fake + self.lambda_cls * d_loss_cls + self.lambda_cls * d_loss_cls_1 + self.lambda_gp * d_loss_gp
+            d_loss = d_loss_real + d_loss_fake + self.lambda_cls * d_loss_cls + self.lambda_bkg * d_loss_cls_1 + self.lambda_gp * d_loss_gp
             self.reset_grad()
             d_loss.backward()
             self.d_optimizer.step()
@@ -292,19 +313,19 @@ class Solver(object):
             
             if (i+1) % self.n_critic == 0:
                 # Original-to-target domain.
-                x_fake = self.G(x_real, c_trg)
+                x_fake = self.G(x_real, c_trg[:, 0, :])
                 out_src, out_cls, out_cls_1 = self.D(x_fake)
                 g_loss_fake = - torch.mean(out_src)
-                g_loss_cls = self.color_distance_loss_loss(out_cls, label_org[0], self.dataset) # label_org[0] = lips lab color
-                g_loss_cls_1 = self.color_distance_loss_loss(out_cls_1, label_org[1], self.dataset) # label_org[1] = skin lab color
+                g_loss_cls = self.color_distance_loss(out_cls, label_org[:, 0, :]) # label[0] = lips lab color
+                g_loss_cls_1 = self.color_distance_loss(out_cls_1, label_org[:, 1, :]) # label[1] = skin lab color
 
                 # Target-to-original domain.
-                x_reconst = self.G(x_fake, c_org[0])
+                x_reconst = self.G(x_fake, c_org[:, 0, :])
                 # g_loss_rec = torch.mean(torch.abs(x_real - x_reconst))
                 g_loss_rec = self.mssim_loss(x_real, x_reconst)
 
                 # Backward and optimize.
-                g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls + self.lambda_cls * g_loss_cls_1
+                g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls + self.lambda_bkg * g_loss_cls_1
                 self.reset_grad()
                 g_loss.backward()
                 self.g_optimizer.step()
@@ -335,8 +356,7 @@ class Solver(object):
             if (i+1) % self.sample_step == 0:
                 with torch.no_grad():
                     x_fake_list = [x_fixed]
-                    for c_fixed in c_fixed_list:
-                        x_fake_list.append(self.G(x_fixed, c_fixed))
+                    x_fake_list.append(self.G(x_fixed, c_target[:, 0, :]))
                     x_fake_list.append(x_target)
                     x_concat = torch.cat(x_fake_list, dim=3)
                     sample_path = os.path.join(self.sample_dir, '{}-images.jpg'.format(i+1))
