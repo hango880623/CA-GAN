@@ -9,7 +9,9 @@ import os
 import time
 import datetime
 
-from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
+from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
+
+# from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 from tqdm import tqdm
 
 
@@ -198,8 +200,8 @@ class Solver(object):
     
     def mssim_loss(self, logit, target):
         """Compute multiscale structural similarity loss of the generative image."""
-        ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(kernel_size=5).to(self.device)
-        return 1 - ms_ssim(logit, target)
+        # ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(kernel_size=5).to(self.device)
+        return 1 - ms_ssim( logit, target, data_range=255, size_average=False )
 
     def train(self):
         """Train StarGAN within a single dataset."""
