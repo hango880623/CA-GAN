@@ -14,10 +14,10 @@ python main.py \
     --sample_step 1000 \
     --celeba_crop_size 192 \
     --model_save_step 5000 \
-    --resume_iters 105000 \
-    --lambda_cls 10 \
-    --lambda_rec 200 \
+    --resume_iters 10000 \
+    --lambda_cls 20 \
+    --lambda_rec 100 \
     --lambda_gp 10 \
-    --lambda_bkg 10 \
+    --lambda_bkg 1 \
     --num_workers 2 
     
