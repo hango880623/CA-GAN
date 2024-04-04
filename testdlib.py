@@ -95,7 +95,7 @@ def get_lips_color(image_path):
 
     # Read the image
     image = cv2.imread(image_path)
-
+    print(image.shape)
     # Convert the image to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -107,7 +107,15 @@ def get_lips_color(image_path):
 
         # Extract lip points (usually landmarks 48-60)
         lips = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(48, 61)]
-        
+        # Separate x and y coordinates
+        x_coords = [point[0] for point in lips]
+        y_coords = [point[1] for point in lips]
+
+        # Calculate the average x and y coordinates
+        avg_x = np.mean(x_coords) +5
+        avg_y = np.mean(y_coords)
+        print(avg_x, avg_y)
+
         # Create a mask for the lips
         mask = np.zeros(image.shape[:2], dtype=np.uint8)
         cv2.fillPoly(mask, [np.array(lips)], (255, 255, 255))
@@ -124,10 +132,19 @@ def get_lips_color(image_path):
         color_image = np.full_like(image, average_color_bgr, dtype=np.uint8)
         cv2.imwrite("./rgb_color_lips.jpg", color_image)
 
+        # Draw the square on the image
+        rec_1 = (int(avg_x) - 56, int(avg_y) - 28)
+        rec_2 = (int(avg_x) + 56, int(avg_y) + 28)
+        x1 = int(avg_x) - 64
+        y1 = int(avg_y) - 32
+        x2 = int(avg_x) + 64
+        y2 = int(avg_y) + 32
+        cropped_image = image[y1:y2, x1:x2]
+        cv2.imwrite("./cropped_image.jpg", cropped_image)
+        cv2.rectangle(image, (x1, y1), (x2, y2), (255, 0, 0), 2)
+        # Or save the image
         # Draw the lips on the image
         cv2.polylines(image, [np.array(lips)], isClosed=True, color=(0, 255, 0), thickness=2)
-
-        # Or save the image
         cv2.imwrite("./output_image_with_lips.jpg", image)
 
     if len(faces) == 0:
@@ -181,8 +198,8 @@ def test_MT():
     dataset = MT(image_dir="./mtdataset/images/makeup", attr_path="./mtdataset/makeuptest.txt",transform = transform,mode = "train")
                  
 if __name__ == '__main__':
-    get_lips_color("./mtdataset/images/makeup/vFG99.png")
-    get_skin_color("./mtdataset/images/makeup/vFG99.png")
+    get_lips_color("./data/mt/images/makeup/vFG55.png")
+    get_skin_color("./data/mt/images/makeup/vFG55.png")
     # save_filenames_to_txt("./mtdataset/images/makeup", "./mtdataset/makeup.txt")
     # save_filenames_to_txt("./mtdataset/images/non-makeup", "./mtdataset/non-makeup.txt")
     # test_MT()
