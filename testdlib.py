@@ -6,6 +6,7 @@ import os
 from torchvision import transforms as T
 from data_loader import MT
 
+
 def get_skin_color(image_path):
     # Load the pre-trained face detector
     detector = dlib.get_frontal_face_detector()
@@ -15,6 +16,7 @@ def get_skin_color(image_path):
 
     # Read the image
     image = cv2.imread(image_path)
+    
 
     # Convert the image to grayscale
     # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -38,15 +40,25 @@ def get_skin_color(image_path):
         cv2.fillPoly(mask, [np.array(lips)], (0, 0, 0))
         
         # Compute average color of the face
-        average_color = cv2.mean(image, mask=mask)
+        image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+
+        pixel_values_lab = image_lab[np.where(mask == 255)]
+
+        median_color_lab = np.median(pixel_values_lab, axis=0)
+        print("Median LAB color of the skin:", median_color_lab)
+
+        pixel_values = image[np.where(mask == 255)]
+
+        median_color = np.median(pixel_values, axis=0)
+        
 
         # Convert to integer BGR values
-        average_color_bgr = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
+        median_color_bgr = (int(median_color[0]), int(median_color[1]), int(median_color[2]))
 
-        print("Average RGB color of the skin:", average_color_bgr)
+        print("Average RGB color of the skin:", median_color_bgr)
 
         # Create a new image filled with the average color
-        color_image = np.full_like(image, average_color_bgr, dtype=np.uint8)
+        color_image = np.full_like(image, median_color_bgr, dtype=np.uint8)
         cv2.imwrite("./rgb_color_skin.jpg", color_image)
 
         # Draw the face contour on the image
@@ -55,35 +67,7 @@ def get_skin_color(image_path):
 
         # Save the image
         cv2.imwrite("./output_image_with_face.jpg", image)
-    if len(faces) == 0:
-        print("No face detected")
-        # Get the dimensions of the image
-        height, width = image.shape[:2]
-
-        # Calculate the size of the square
-        square_size = min(height, width) // 5
-
-        # Calculate the coordinates of the square
-        top_left_x = (width - square_size) // 2
-        top_left_y = (height - square_size) // 2 
-        bottom_right_x = top_left_x + square_size
-        bottom_right_y = top_left_y + square_size
-        # Extract the region of interest (ROI) corresponding to the square area
-        square_roi = image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
-        # Draw the square on the image
-        cv2.rectangle(image, (top_left_x, top_left_y), (bottom_right_x, bottom_right_y), (0, 255, 0), 2)
-        cv2.imwrite("./output_image_with_face.jpg", image)
-
-        # Compute the mean color of the ROI
-        average_color = cv2.mean(square_roi)
-        # Convert to integer RGB values
-        average_color_bgr = (int(average_color[0]), int(average_color[1]), int(average_color[2]))
-        # Create a new image filled with the average color
-        color_image = np.full_like(image, average_color_bgr, dtype=np.uint8)
-        cv2.imwrite("./rgb_color_skin.jpg", color_image)
-            
-    print(average_color_bgr)
-    return average_color_bgr
+    return median_color_bgr
 
 
 def get_lips_color(image_path):
@@ -198,8 +182,20 @@ def test_MT():
     dataset = MT(image_dir="./mtdataset/images/makeup", attr_path="./mtdataset/makeuptest.txt",transform = transform,mode = "train")
                  
 if __name__ == '__main__':
-    get_lips_color("./data/mt/images/makeup/vFG55.png")
-    get_skin_color("./data/mt/images/makeup/vFG55.png")
+    # get_lips_color("./data/mt/images/makeup/vFG55.png")
+    # get_skin_color("./data/mt/images/makeup/vFG55.png")
     # save_filenames_to_txt("./mtdataset/images/makeup", "./mtdataset/makeup.txt")
     # save_filenames_to_txt("./mtdataset/images/non-makeup", "./mtdataset/non-makeup.txt")
     # test_MT()
+
+
+    # path  
+    path ="./data/mt/images/makeup/vFG55.png"
+    org = np.float32(cv2.imread(path))
+    print(org[0])
+    lab_image = cv2.cvtColor(org, cv2.COLOR_BGR2LAB)
+    print(lab_image[0])
+    org = org / 255.
+    lab_image = cv2.cvtColor(org, cv2.COLOR_BGR2LAB)
+    print(lab_image[0])
+    

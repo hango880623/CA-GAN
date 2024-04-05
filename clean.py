@@ -84,7 +84,7 @@ def clean_file(attribute_path, image_dir):
             print('Lips not detected in image:', image_path)
 
     # Write clean filenames to the new attribute file makeup_clean.txt
-    with open('./data/mt/non-makeup_clean.txt', 'w') as file:
+    with open('./data/mt/makeup_clean.txt', 'w') as file:
         for filename in clean_file_names:
             file.write(filename + '\n')
 
@@ -104,10 +104,12 @@ if __name__ == '__main__':
     # image_dir = './data/mt/images/makeup'
     # attribute_path = './data/mt/makeup_clean.txt'
     # clean_file(attribute_path, image_dir)
+
     image_dir = './data/mt/images/makeup'
     attribute_path = './data/mt/makeup_clean.txt'
     target_dir = './data/mt/images/makeup_cropped'
     build_crop_data(attribute_path, image_dir,target_dir)
+    
 
 
              

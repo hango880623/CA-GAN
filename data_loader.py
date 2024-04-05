@@ -102,6 +102,7 @@ class MT(data.Dataset):
         # Load the pre-trained face detector
         detector = dlib.get_frontal_face_detector()
         image = cv2.imread(image_path)
+        
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         faces = detector(gray)
@@ -113,7 +114,7 @@ class MT(data.Dataset):
             mask = np.zeros(image.shape[:2], dtype="uint8")
             cv2.fillPoly(mask, [np.array(lips)], (255, 255, 255))
             
-            image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+            image_lab = cv2.cvtColor(np.float32(image)/ 255., cv2.COLOR_BGR2LAB)
             # Extract pixel values within the mask
             pixel_values = image_lab[np.where(mask == 255)]
             # Compute median color
@@ -144,7 +145,7 @@ class MT(data.Dataset):
             lips = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(48, 61)]
             cv2.fillPoly(mask, [np.array(lips)], (0, 0, 0))
 
-            image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+            image_lab = cv2.cvtColor(np.float32(image)/ 255., cv2.COLOR_BGR2LAB)
             # Extract pixel values within the mask
             pixel_values = image_lab[np.where(mask == 255)]
             # Compute median color
