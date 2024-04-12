@@ -40,19 +40,19 @@ def main(config):
                                    'MT', config.mode, config.num_workers)
     
 
-    # # Solver for training and testing StarGAN.
-    # solver = Solver(celeba_loader, rafd_loader, mt_loader, config)
+    # Solver for training and testing StarGAN.
+    solver = Solver(celeba_loader, rafd_loader, mt_loader, config)
 
-    # if config.mode == 'train':
-    #     if config.dataset in ['CelebA', 'MT', 'RaFD']:
-    #         solver.train()
-    #     elif config.dataset in ['Both']:
-    #         solver.train_multi()
-    # elif config.mode == 'test':
-    #     if config.dataset in ['CelebA', 'MT','RaFD']:
-    #         solver.test()
-    #     elif config.dataset in ['Both']:
-    #         solver.test_multi()
+    if config.mode == 'train':
+        if config.dataset in ['CelebA', 'MT', 'RaFD']:
+            solver.train()
+        elif config.dataset in ['Both']:
+            solver.train_multi()
+    elif config.mode == 'test':
+        if config.dataset in ['CelebA', 'MT','RaFD']:
+            solver.test()
+        elif config.dataset in ['Both']:
+            solver.test_multi()
 
 
 if __name__ == '__main__':

@@ -6,6 +6,8 @@ import os
 from torchvision import transforms as T
 from data_loader import MT
 
+import csv
+
 
 def get_skin_color(image_path):
     # Load the pre-trained face detector
@@ -115,7 +117,6 @@ def get_lips_color(image_path):
         # Create a new image filled with the average color
         color_image = np.full_like(image, average_color_bgr, dtype=np.uint8)
         cv2.imwrite("./rgb_color_lips.jpg", color_image)
-
         # Draw the square on the image
         rec_1 = (int(avg_x) - 56, int(avg_y) - 28)
         rec_2 = (int(avg_x) + 56, int(avg_y) + 28)
@@ -181,6 +182,29 @@ def test_MT():
     transform = T.Compose(transform)
     dataset = MT(image_dir="./mtdataset/images/makeup", attr_path="./mtdataset/makeuptest.txt",transform = transform,mode = "train")
                  
+def verify_label(train_label):
+    # Load train dataset
+    base_path ="./data/mt/images/makeup"
+    train_dataset = []
+    with open(train_label, 'r', newline='') as f:
+        reader = csv.reader(f)
+        next(reader)  # Skip header row
+        for row in reader:
+            lips_colors = [int(x) for x in row[1].strip('[]').split(',')]
+            skin_colors = [int(x) for x in row[2].strip('[]').split(',')]
+            train_dataset.append([row[0],[lips_colors,skin_colors]])
+    image_list = []
+    image_org = []
+    for file_name,colors in train_dataset[10:20]:
+        image_path = os.path.join(base_path,file_name)
+        image = cv2.imread(image_path)
+        color_image = np.full_like(image, colors[0], dtype=np.float32)
+        rbg_image = cv2.cvtColor(color_image, cv2.COLOR_LAB2BGR) * 255.
+        image_list.append(rbg_image)
+        image_org.append(image)
+    image_cat = np.concatenate(image_list, axis=0)
+    image_cat_org = np.concatenate(image_org, axis=0)
+    cv2.imwrite("./rgb_color_lips_strip.jpg", np.concatenate([image_cat_org,image_cat], axis=1))
 if __name__ == '__main__':
     # get_lips_color("./data/mt/images/makeup/vFG55.png")
     # get_skin_color("./data/mt/images/makeup/vFG55.png")
@@ -190,12 +214,13 @@ if __name__ == '__main__':
 
 
     # path  
-    path ="./data/mt/images/makeup/vFG55.png"
-    org = np.float32(cv2.imread(path))
-    print(org[0])
-    lab_image = cv2.cvtColor(org, cv2.COLOR_BGR2LAB)
-    print(lab_image[0])
-    org = org / 255.
-    lab_image = cv2.cvtColor(org, cv2.COLOR_BGR2LAB)
-    print(lab_image[0])
+    # path ="./data/mt/images/makeup/vFG55.png"
+    # org = np.float32(cv2.imread(path))
+    # print(org[0])
+    # lab_image = cv2.cvtColor(org / 255., cv2.COLOR_BGR2LAB)
+    # lab_image = cv2.cvtColor(lab_image, cv2.COLOR_LAB2BGR)
+    # lab_image = (lab_image * 255).astype(np.uint8)
+    # print(lab_image[0])
+    verify_label("./data/mt/train_label.csv")
+    
     

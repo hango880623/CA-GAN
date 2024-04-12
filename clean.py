@@ -13,7 +13,7 @@ def get_lips(image_path):
     faces = detector(gray)
 
     if len(faces) == 0:
-        print('No face detected in image:', image_path)
+        # print('No face detected in image:', image_path)
         return False
     return True
 
@@ -73,8 +73,11 @@ def crop_lips(image_dir, target_dir, file_name):
         # cv2.imwrite("./output_image_with_lips.jpg", image)
     return [y1,y2,x1,x2]
 
-def clean_file(attribute_path, image_dir):
-    all_file_names = [line.rstrip() for line in open(attribute_path, 'r')]
+def clean_file(image_dir, attribute_path = None):
+    if attribute_path is None:
+        all_file_names = os.listdir(image_dir)
+    else:
+        all_file_names = [line.rstrip() for line in open(attribute_path, 'r')]
     clean_file_names = []
     for i, filename in enumerate(tqdm(all_file_names)):
         image_path = image_dir+'/'+filename
@@ -82,9 +85,10 @@ def clean_file(attribute_path, image_dir):
             clean_file_names.append(filename)
         else:
             print('Lips not detected in image:', image_path)
+            os.remove(image_path)
 
     # Write clean filenames to the new attribute file makeup_clean.txt
-    with open('./data/mt/makeup_clean.txt', 'w') as file:
+    with open(image_dir+'clean.txt', 'w') as file:
         for filename in clean_file_names:
             file.write(filename + '\n')
 
@@ -103,12 +107,13 @@ def build_crop_data(attribute_path, image_dir, target_dir):
 if __name__ == '__main__':
     # image_dir = './data/mt/images/makeup'
     # attribute_path = './data/mt/makeup_clean.txt'
-    # clean_file(attribute_path, image_dir)
+    image_dir = '/Users/kuyuanhao/Documents/Crawl/face'
+    clean_file(image_dir)
 
-    image_dir = './data/mt/images/makeup'
-    attribute_path = './data/mt/makeup_clean.txt'
-    target_dir = './data/mt/images/makeup_cropped'
-    build_crop_data(attribute_path, image_dir,target_dir)
+    # image_dir = './data/mt/images/makeup'
+    # attribute_path = './data/mt/makeup_clean.txt'
+    # target_dir = './data/mt/images/makeup_cropped'
+    # build_crop_data(attribute_path, image_dir,target_dir)
     
 
 
