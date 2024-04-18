@@ -78,6 +78,8 @@ class Solver(object):
         self.build_model()
         if self.use_tensorboard:
             self.build_tensorboard()
+        torch.manual_seed(99)
+
 
     def select_device(self):
         if torch.backends.mps.is_available():
@@ -300,7 +302,7 @@ class Solver(object):
             d_loss_gp = self.gradient_penalty(out_src, x_hat)
 
             # Backward and optimize.
-            d_loss = d_loss_real + d_loss_fake + self.lambda_cls * d_loss_cls + self.lambda_bkg * d_loss_cls_1 + self.lambda_gp * d_loss_gp
+            d_loss = d_loss_real + d_loss_fake + d_loss_cls + d_loss_cls_1 + self.lambda_gp * d_loss_gp
             self.reset_grad()
             d_loss.backward()
             self.d_optimizer.step()
@@ -406,6 +408,7 @@ class Solver(object):
                 torch.save(self.D.state_dict(), D_path)
                 print('Saved model checkpoints into {}...'.format(self.model_save_dir))
 
+
             # Decay learning rates.
             if (i+1) % self.lr_update_step == 0 and (i+1) > (self.num_iters - self.num_iters_decay):
                 g_lr -= (self.g_lr / float(self.num_iters_decay))
@@ -413,6 +416,10 @@ class Solver(object):
                 self.update_lr(g_lr, d_lr)
                 print ('Decayed learning rates, g_lr: {}, d_lr: {}.'.format(g_lr, d_lr))
             
+            # prevent memory leak
+            if (i+1) % 20000 == 0:
+                torch.cuda.empty_cache()
+                print('Memory Cleared')
             # Update target color
             label_trg = label_org    
 
