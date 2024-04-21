@@ -102,6 +102,7 @@ class MT(data.Dataset):
         # Load the pre-trained face detector
         detector = dlib.get_frontal_face_detector()
         image = cv2.imread(image_path)
+        
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         faces = detector(gray)
@@ -113,25 +114,18 @@ class MT(data.Dataset):
             mask = np.zeros(image.shape[:2], dtype="uint8")
             cv2.fillPoly(mask, [np.array(lips)], (255, 255, 255))
             
-            image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-            average_color = cv2.mean(image_lab, mask=mask)
-            average_color_lab = [int(average_color[0]), int(average_color[1]), int(average_color[2])]
+            image_lab = cv2.cvtColor(np.float32(image)/ 255., cv2.COLOR_BGR2LAB)
+            # Extract pixel values within the mask
+            pixel_values = image_lab[np.where(mask == 255)]
+            # Compute median color
+            median_color_lab = np.median(pixel_values, axis=0)
+            median_color_lab = [int(median_color_lab[0]), int(median_color_lab[1]), int(median_color_lab[2])]
 
         if len(faces) == 0:
-            height, width = image.shape[:2]
-            square_size = min(height, width) // 5
+            print('No face detected in image:', image_path)
+            return [int(0), int(0), int(0)]
 
-            top_left_x = (width - square_size) // 2
-            top_left_y = (height - square_size) // 2 + square_size
-            bottom_right_x = top_left_x + square_size//2
-            bottom_right_y = top_left_y + square_size//2
-
-            square_roi = image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
-            square_lab = cv2.cvtColor(square_roi, cv2.COLOR_BGR2LAB)
-            average_color = cv2.mean(square_lab)
-            average_color_lab = [int(average_color[0]), int(average_color[1]), int(average_color[2])]
-
-        return average_color_lab
+        return median_color_lab
     
     def get_skin_color(self, image_path):
         # Load the pre-trained face detector
@@ -151,24 +145,16 @@ class MT(data.Dataset):
             lips = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(48, 61)]
             cv2.fillPoly(mask, [np.array(lips)], (0, 0, 0))
 
-            image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-            average_color = cv2.mean(image_lab, mask=mask)
-            average_color_lab = [int(average_color[0]), int(average_color[1]), int(average_color[2])]
-
+            image_lab = cv2.cvtColor(np.float32(image)/ 255., cv2.COLOR_BGR2LAB)
+            # Extract pixel values within the mask
+            pixel_values = image_lab[np.where(mask == 255)]
+            # Compute median color
+            median_color_lab = np.median(pixel_values, axis=0)
+            median_color_lab = [int(median_color_lab[0]), int(median_color_lab[1]), int(median_color_lab[2])]
         if len(faces) == 0:
-            height, width = image.shape[:2]
-            square_size = min(height, width) // 5
-
-            top_left_x = (width - square_size) // 2
-            top_left_y = (height - square_size) // 2 
-            bottom_right_x = top_left_x + square_size
-            bottom_right_y = top_left_y + square_size
-            square_roi = image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
-            square_lab = cv2.cvtColor(square_roi, cv2.COLOR_BGR2LAB)
-            average_color = cv2.mean(square_lab)
-            average_color_lab = [int(average_color[0]), int(average_color[1]), int(average_color[2])]
-
-        return average_color_lab
+            print('No face detected in image:', image_path)
+            return [int(0), int(0), int(0)]
+        return median_color_lab
 
     def preprocess(self):
         if os.path.exists(self.train_label) and os.path.exists(self.test_label):
@@ -252,8 +238,8 @@ def get_loader(image_dir, attr_path, train_label, test_label, selected_attrs, cr
     transform = []
     if mode == 'train':
         transform.append(T.RandomHorizontalFlip())
-    transform.append(T.CenterCrop(crop_size))
-    transform.append(T.Resize(image_size))
+    # transform.append(T.CenterCrop(crop_size))
+    transform.append(T.Resize((image_size,image_size)))
     transform.append(T.ToTensor())
     transform.append(T.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)))
     transform = T.Compose(transform)
