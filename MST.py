@@ -3,6 +3,16 @@ import math
 import pandas as pd
 from skimage.color import rgb2lab
 import matplotlib.pyplot as plt
+import os
+
+import dlib
+import cv2
+import numpy as np
+
+import csv
+from tqdm import tqdm
+
+
 
 def find_nearest_color(input_color_lab, target_colors_lab):
     min_distance = float('inf')
@@ -21,7 +31,7 @@ def color_distance(color1, color2):
     l2, a2, b2 = color2
     return math.sqrt((l2 - l1)**2 + (a2 - a1)**2 + (b2 - b1)**2)
 
-def add_monk_skin_tone(df):
+def add_monk_skin_tone(df, save_dir):
     # Create a new column to store the nearest Monk skin tone name
     df['Monk_Skin_Tone'] = ''
 
@@ -36,7 +46,8 @@ def add_monk_skin_tone(df):
         nearest_monk_name = list(monk_skin_tones.keys())[nearest_monk_index]
         df.at[index, 'Monk_Skin_Tone'] = nearest_monk_name
         print(f"Nearest Monk skin tone for row {index + 1}: {nearest_monk_name}")
-    df.to_csv('./data/mt/train_class.csv', index=False)
+    df.to_csv(save_dir, index=False)
+
 def show_monk_skin_tone_distribution(df):
     skin_tone_counts = df['Monk_Skin_Tone'].value_counts()
     print(skin_tone_counts)
@@ -52,9 +63,97 @@ def show_monk_skin_tone_distribution(df):
     plt.tight_layout()
     plt.show()
 
+def get_lips_color(image_path):
+    predictor = dlib.shape_predictor("./pretrained_model/shape_predictor_68_face_landmarks.dat")
+    # Load the pre-trained face detector
+    detector = dlib.get_frontal_face_detector()
+    image = cv2.imread(image_path)
+    
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    faces = detector(gray)
+
+    for face in faces:
+        # Predict facial landmarks
+        landmarks = predictor(gray, face)
+        lips = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(48, 61)]
+        mask = np.zeros(image.shape[:2], dtype="uint8")
+        cv2.fillPoly(mask, [np.array(lips)], (255, 255, 255))
+        
+        image_lab = cv2.cvtColor(np.float32(image)/ 255., cv2.COLOR_BGR2LAB)
+        # Extract pixel values within the mask
+        pixel_values = image_lab[np.where(mask == 255)]
+        # Compute median color
+        median_color_lab = np.median(pixel_values, axis=0)
+        median_color_lab = [int(median_color_lab[0]), int(median_color_lab[1]), int(median_color_lab[2])]
+
+    if len(faces) == 0:
+        print('No face detected in image:', image_path)
+        return [int(0), int(0), int(0)]
+
+    return median_color_lab
+
+def get_skin_color(image_path):
+    predictor = dlib.shape_predictor("./pretrained_model/shape_predictor_68_face_landmarks.dat")
+    # Load the pre-trained face detector
+    detector = dlib.get_frontal_face_detector()
+    image = cv2.imread(image_path)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    faces = detector(gray)
+
+    for face in faces:
+        # Predict facial landmarks
+        landmarks = predictor(gray, face)
+        facepts = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(1, 16)]
+        mask = np.zeros(image.shape[:2], dtype="uint8")
+        cv2.fillPoly(mask, [np.array(facepts)], (255, 255, 255))
+        # Exclude lips region (landmarks 48-60)
+        lips = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(48, 61)]
+        cv2.fillPoly(mask, [np.array(lips)], (0, 0, 0))
+
+        image_lab = cv2.cvtColor(np.float32(image)/ 255., cv2.COLOR_BGR2LAB)
+        # Extract pixel values within the mask
+        pixel_values = image_lab[np.where(mask == 255)]
+        # Compute median color
+        median_color_lab = np.median(pixel_values, axis=0)
+        median_color_lab = [int(median_color_lab[0]), int(median_color_lab[1]), int(median_color_lab[2])]
+    if len(faces) == 0:
+        print('No face detected in image:', image_path)
+        return [int(0), int(0), int(0)]
+    return median_color_lab
+
+def label_color(attr_path, image_dir, label_path):
+
+    """Preprocess the Makeup Transfer file."""
+    lines = [line.rstrip() for line in open(attr_path, 'r')]
+    all_file_names = lines
+ 
+    dataset = []
+    for i, filename in enumerate(tqdm(all_file_names)):
+
+        cm_label = get_lips_color(image_dir+'/'+filename)
+        cs_label = get_skin_color(image_dir+'/'+filename)
+        label = [cm_label, cs_label]
+        dataset.append([filename, label])
+    print('Finished preprocessing the Makeup Transfer dataset...')
+    
+    # Save the datasets
+    with open(label_path, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Filename', 'Lips_Color', 'Skin_Color'])
+        for item in dataset:
+            writer.writerow([item[0], *[list(color) for color in item[1]]])
+    print('Datasets saved successfully.')
+
 if __name__ == '__main__':
-    train_file ="data/mt/train_class.csv"
-    df = pd.read_csv(train_file)
+    base_path = '/Users/kuyuanhao/Documents/Customized/'
+    attr_path = base_path + 'clean.txt'
+    image_dir = base_path
+    label_path = base_path + 'label.csv'
+    # label_color(attr_path, image_dir, label_path)
+    # train_file ="data/mt/train_class.csv"
+    df = pd.read_csv(label_path)
     
     monk_skin_tones = {
         "Monk 01": {"hex": "#f6ede4", "rgb": [246, 237, 228]},
@@ -68,6 +167,8 @@ if __name__ == '__main__':
         "Monk 09": {"hex": "#3a312a", "rgb": [58, 49, 42]},
         "Monk 10": {"hex": "#292420", "rgb": [41, 36, 32]}
     }
+    save_dir = base_path + 'class.csv'
+    add_monk_skin_tone(df,save_dir)
     show_monk_skin_tone_distribution(df)
     
 

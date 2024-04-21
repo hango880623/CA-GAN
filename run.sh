@@ -12,12 +12,12 @@ python main.py \
     --attr_path data/mt/makeup_clean.txt \
     --mt_image_dir data/mt/images/makeup_cropped \
     --sample_step 1000 \
-    --resume_iters 150000 \
+    --resume_iters 180000 \
     --model_save_step 5000 \
     --lambda_cls 25 \
     --lambda_rec 200 \
     --lambda_gp 10 \
-    --lambda_bkg 5 \
+    --lambda_bkg 15 \
     --num_workers 2 \
     --num_iters_decay 20000
     
