@@ -86,5 +86,5 @@ class Discriminator(nn.Module):
         h = self.main(x)
         out_src = self.conv1(h)
         out_lips = self.conv2(h)
-        out_skin = self.conv2(h)
+        out_skin = self.conv3(h)
         return out_src, out_lips.view(out_lips.size(0), out_lips.size(1)), out_skin.view(out_skin.size(0), out_skin.size(1))

@@ -206,7 +206,7 @@ def verify_label(train_label):
     image_cat_org = np.concatenate(image_org, axis=0)
     cv2.imwrite("./rgb_color_lips_strip.jpg", np.concatenate([image_cat_org,image_cat], axis=1))
 if __name__ == '__main__':
-    # get_lips_color("./data/mt/images/makeup/vFG55.png")
+    get_lips_color("./data/LABImage/p_1_55_3000.JPG")
     # get_skin_color("./data/mt/images/makeup/vFG55.png")
     # save_filenames_to_txt("./mtdataset/images/makeup", "./mtdataset/makeup.txt")
     # save_filenames_to_txt("./mtdataset/images/non-makeup", "./mtdataset/non-makeup.txt")

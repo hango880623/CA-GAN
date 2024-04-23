@@ -28,7 +28,7 @@ def crop_lips(image_dir, target_dir, file_name):
     predictor = dlib.shape_predictor("./pretrained_model/shape_predictor_68_face_landmarks.dat")
 
     # Read the image
-    image_path = image_dir + '/' + file_name
+    image_path = image_dir + file_name
     image = cv2.imread(image_path)
     # Convert the image to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
