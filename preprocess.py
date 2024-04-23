@@ -16,13 +16,13 @@ monk_skin_tones = {
     }
 
 if __name__ == '__main__':
-    # base_path = '/Users/kuyuanhao/Documents/LABImage/'
+    base_path = '/Users/kuyuanhao/Documents/Data0421/customized/'
     # clean_file(base_path)
-    # attr_path = base_path + 'clean.txt'
+    attr_path = '/Users/kuyuanhao/Documents/Data0421/clean.txt'
 
-    # target_dir = '/Users/kuyuanhao/Documents/LABImage_cropped/'
+    target_dir = '/Users/kuyuanhao/Documents/Data0421/customized_cropped/'
     
-    # build_crop_data(attr_path, base_path, target_dir)
+    build_crop_data(attr_path, base_path, target_dir)
     # image_dir = base_path
     # label_path = base_path + 'label.csv'
 
@@ -31,8 +31,8 @@ if __name__ == '__main__':
     # add_monk_skin_tone(df,save_dir)
     # show_monk_skin_tone_distribution(df)
 
-    df1 = pd.read_csv('/Users/kuyuanhao/Documents/LABImage/class.csv')
-    df2 = pd.read_csv('/Users/kuyuanhao/Documents/Customized/class.csv')
-    merged_df = pd.concat([df1, df2], ignore_index=True)
+    # df1 = pd.read_csv('/Users/kuyuanhao/Documents/LABImage/class.csv')
+    # df2 = pd.read_csv('/Users/kuyuanhao/Documents/Customized/class.csv')
+    # merged_df = pd.concat([df1, df2], ignore_index=True)
 
-    merged_df.to_csv('/Users/kuyuanhao/Documents/Data0421/class.csv', index=False)
+    # merged_df.to_csv('/Users/kuyuanhao/Documents/Data0421/class.csv', index=False)

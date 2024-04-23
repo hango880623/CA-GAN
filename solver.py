@@ -110,9 +110,9 @@ class Solver(object):
         num_params = 0
         for p in model.parameters():
             num_params += p.numel()
-        print(model)
-        print(name)
-        print("The number of parameters: {}".format(num_params))
+        # print(model)
+        # print(name)
+        # print("The number of parameters: {}".format(num_params))
 
     def restore_model(self, resume_iters):
         """Restore the trained generator and discriminator."""
@@ -190,6 +190,7 @@ class Solver(object):
 
             c_trg_list.append(c_trg.to(self.device))
         return c_trg_list
+            
 
     def classification_loss(self, logit, target, dataset='CelebA'):
         """Compute binary or softmax cross entropy loss."""
@@ -206,6 +207,7 @@ class Solver(object):
         """Compute multiscale structural similarity loss of the generative image."""
         ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(kernel_size=5).to(self.device)
         return 1 - ms_ssim( logit, target)
+        # return 1 - ms_ssim( logit, target, data_range=255, size_average=True )
 
     def train(self):
         """Train StarGAN within a single dataset."""
@@ -435,21 +437,75 @@ class Solver(object):
             data_loader = self.rafd_loader
         elif self.dataset == 'MT':
             data_loader = self.mt_loader
-        
+
+        # Monk skin tone 1 to 10
+        test_file_names = ['vRX447.png','vRX490.png','vHX478.png','vFG58.png','vHX120.png','vFG333.png','XYH-082.png','8fb420459611cbe7e1e87f04abaa505f.png','Mypsd_2969_201012102201250011B.png','32-41039.png']
+        test_lips_color = torch.tensor([[30, 32, 23],[32, 34, 22],[32, 32, 21],[32, 32, 23],[29, 24, 16]])
+        test_lips_color = test_lips_color.float()
         with torch.no_grad():
+
             for i, (x_real, c_org) in enumerate(data_loader):
+                # create color strip for original lips
+                x_fixed = x_real.to(self.device)
+                c_fixed = c_org.to(self.device)
+                test_lips_color = test_lips_color.to(self.device)
+                
+                lip_color_org_list = []
+                for index, lip_color in enumerate(c_fixed[:, 0, :]):
+                    color_image = torch.zeros_like(x_fixed[index])
+                    color_image[:] = lip_color[:, None, None]
+                    color_image = image_lab2bgr(color_image.cpu().numpy(), lip_color.cpu().numpy())
+                    lip_color_org_list.append(torch.from_numpy(color_image))
+                lip_color_org_tensor = torch.stack(lip_color_org_list)
 
-                # Prepare input images and target domain labels.
-                x_real = x_real.to(self.device)
-                c_trg_list = self.create_labels(c_org, self.c_dim, self.dataset, self.selected_attrs)
+                # create color strip for target lips single shade
+                lip_color_trg_list_single = []
+                for index, lip_color in enumerate(test_lips_color):
+                    color_image = torch.zeros_like(x_fixed[index])
+                    lip_color = lip_color.resize(3, 1, 1)
+                    color_image[:] = lip_color
+                    color_image = image_lab2bgr(color_image.cpu().numpy(), lip_color.cpu().numpy())
+                    lip_color_trg_list_single.append(torch.from_numpy(color_image))
 
-                # Translate images.
-                x_fake_list = [x_real]
-                for c_trg in c_trg_list:
-                    x_fake_list.append(self.G(x_real, c_trg))
+                lip_color_trg_tensor_single = torch.stack(lip_color_trg_list_single)
 
-                # Save the translated images.
-                x_concat = torch.cat(x_fake_list, dim=3)
-                result_path = os.path.join(self.result_dir, '{}-images.jpg'.format(i+1))
-                save_image(self.denorm(x_concat.data.cpu()), result_path, nrow=1, padding=0)
-                print('Saved real and fake images into {}...'.format(result_path))
+                # create color strip for target lips multiple shades
+                color_images = [torch.zeros_like(x_fixed[0]).cpu(),torch.zeros_like(x_fixed[0]).cpu()]
+                for lip_color in test_lips_color:
+                    color_image = torch.zeros_like(x_fixed[0])
+                    lip_color = lip_color.resize(3, 1, 1)
+                    color_image[:] = lip_color
+                    color_image = image_lab2bgr(color_image.cpu().numpy(), lip_color.cpu().numpy())
+                    color_images.append(torch.from_numpy(color_image))
+                color_concat = torch.cat(color_images, dim=-1)
+                color_concat = color_concat.unsqueeze(0)
+
+                x_list = []
+                # original image
+                original = self.denorm(x_fixed.data.cpu())
+                # generated image
+                fake_list = []
+                for lip_color in test_lips_color:
+                    color_batches = lip_color.repeat(16, 1)
+                    fake = self.denorm(self.G(x_fixed, color_batches).data.cpu())
+                    fake_list.append(fake)
+                fake_concat = torch.cat(fake_list, dim=-1)
+                # original lips color
+                original_color = lip_color_org_tensor / 255.
+                # # target lips color (single shade)
+                # target_color_single = lip_color_trg_tensor_single / 255.
+                color_concat = color_concat / 255.
+
+                # append all images to x_list
+                x_list.append(original_color)
+                x_list.append(original)
+                x_list.append(fake_concat)
+                # x_list.append(target_color_single)
+                x_concat = torch.cat(x_list, dim=3)
+                
+                final = torch.cat((color_concat, x_concat), dim=0)
+                sample_path = os.path.join(self.sample_dir, '{}-images.jpg'.format(i+1))
+                save_image(final, sample_path, nrow=1, padding=0)
+                print('Saved real and fake images into {}...'.format(sample_path))
+                if i == 5:
+                    break
