@@ -157,6 +157,12 @@ class MT(data.Dataset):
         return median_color_lab
 
     def preprocess(self):
+        lines = [line.rstrip() for line in open(self.attr_path, 'r')]
+        all_file_names = lines
+        for i, file_name in enumerate(all_file_names):
+            self.attr2idx[file_name] = i
+            self.idx2attr[i] = file_name
+            
         if os.path.exists(self.train_label) and os.path.exists(self.test_label):
             print('Loading existing datasets...')
             self.load_datasets()
@@ -164,11 +170,6 @@ class MT(data.Dataset):
             return
 
         """Preprocess the Makeup Transfer file."""
-        lines = [line.rstrip() for line in open(self.attr_path, 'r')]
-        all_file_names = lines
-        for i, file_name in enumerate(all_file_names):
-            self.attr2idx[file_name] = i
-            self.idx2attr[i] = file_name
 
         random.seed(1234)
         train_files, test_files = train_test_split(all_file_names, test_size=0.2, random_state=1234)

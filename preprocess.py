@@ -1,6 +1,8 @@
 from clean import clean_file, build_crop_data
 from MST import label_color, add_monk_skin_tone, show_monk_skin_tone_distribution
 import pandas as pd
+import cv2
+import os
 
 monk_skin_tones = {
         "Monk 01": {"hex": "#f6ede4", "rgb": [246, 237, 228]},
@@ -14,6 +16,7 @@ monk_skin_tones = {
         "Monk 09": {"hex": "#3a312a", "rgb": [58, 49, 42]},
         "Monk 10": {"hex": "#292420", "rgb": [41, 36, 32]}
     }
+
 
 if __name__ == '__main__':
     base_path = '/Users/kuyuanhao/Documents/Data0421/customized/'
@@ -36,3 +39,4 @@ if __name__ == '__main__':
     # merged_df = pd.concat([df1, df2], ignore_index=True)
 
     # merged_df.to_csv('/Users/kuyuanhao/Documents/Data0421/class.csv', index=False)
+

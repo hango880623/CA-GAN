@@ -13,7 +13,7 @@ from color_dlib import image_lab2bgr
 
 # from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 
-from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
+from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure, StructuralSimilarityIndexMeasure
 from tqdm import tqdm
 
 
@@ -208,6 +208,12 @@ class Solver(object):
         ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(kernel_size=5).to(self.device)
         return 1 - ms_ssim( logit, target)
         # return 1 - ms_ssim( logit, target, data_range=255, size_average=True )
+    
+    def ssim_loss(self, logit, target):
+        """Compute multiscale structural similarity loss of the generative image."""
+        ssim = StructuralSimilarityIndexMeasure().to(self.device)
+        return 1 - ssim( logit, target)
+        # return 1 - ms_ssim( logit, target, data_range=255, size_average=True )
 
     def train(self):
         """Train StarGAN within a single dataset."""
@@ -331,7 +337,7 @@ class Solver(object):
                 # Target-to-original domain.
                 x_reconst = self.G(x_fake, c_org[:, 0, :])
                 # g_loss_rec = torch.mean(torch.abs(x_real - x_reconst))
-                g_loss_rec = self.mssim_loss(x_real, x_reconst)
+                g_loss_rec = self.ssim_loss(x_real, x_reconst)
 
                 # Backward and optimize.
                 g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls + self.lambda_bkg * g_loss_cls_1
