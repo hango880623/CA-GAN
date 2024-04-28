@@ -1,42 +1,34 @@
 from clean import clean_file, build_crop_data
-from MST import label_color, add_monk_skin_tone, show_monk_skin_tone_distribution
+from MST import label_color, show_monk_skin_tone_distribution
 import pandas as pd
 import cv2
 import os
 
-monk_skin_tones = {
-        "Monk 01": {"hex": "#f6ede4", "rgb": [246, 237, 228]},
-        "Monk 02": {"hex": "#f3e7db", "rgb": [243, 231, 219]},
-        "Monk 03": {"hex": "#f7ead0", "rgb": [247, 234, 208]},
-        "Monk 04": {"hex": "#eadaba", "rgb": [234, 218, 186]},
-        "Monk 05": {"hex": "#d7bd96", "rgb": [215, 189, 150]},
-        "Monk 06": {"hex": "#a07e56", "rgb": [160, 126, 86]},
-        "Monk 07": {"hex": "#825c43", "rgb": [130, 92, 67]},
-        "Monk 08": {"hex": "#604134", "rgb": [96, 65, 52]},
-        "Monk 09": {"hex": "#3a312a", "rgb": [58, 49, 42]},
-        "Monk 10": {"hex": "#292420", "rgb": [41, 36, 32]}
-    }
+from clean import clean_folder
+
+def preprocess_folder(source_folder,target_folder):
+    target_image_folder = target_folder + 'image/'
+    if not os.path.exists(target_image_folder):
+        os.makedirs(target_image_folder)
+        print(f"Created directory: {target_image_folder}")
+
+    attribute_list = clean_folder(source_folder+ 'image/')
+
+    clean_file_names, dataset = label_color(attribute_list, source_folder+'image/')
+    # Convert dataset list to pandas DataFrame
+    df = pd.DataFrame(dataset, columns=['Filename', 'Lips_Color', 'Skin_Color', 'Lips_Color_RGB', 'Skin_Color_RGB', 'Monk_Skin_Tone', 'Monk_Skin_Tone_Color'])
+    df.to_csv(os.path.join(target_folder, 'label.csv'), index=False)
+    print('Dataset saved to', os.path.join(target_folder, 'label.csv'))
+
+     # Write clean filenames to the new attribute file makeup_clean.txt
+    with open(os.path.join(target_folder, 'clean.txt'), 'w') as file:
+        for filename in clean_file_names:
+            file.write(filename + '\n')
+    
+    show_monk_skin_tone_distribution(df,os.path.join(target_folder, 'monk.png'))
 
 
 if __name__ == '__main__':
-    base_path = '/Users/kuyuanhao/Documents/Data0421/customized/'
-    # clean_file(base_path)
-    attr_path = '/Users/kuyuanhao/Documents/Data0421/clean.txt'
-
-    target_dir = '/Users/kuyuanhao/Documents/Data0421/customized_cropped/'
-    
-    build_crop_data(attr_path, base_path, target_dir)
-    # image_dir = base_path
-    # label_path = base_path + 'label.csv'
-
-    # df = pd.read_csv(label_path)
-    # save_dir = base_path + 'class.csv'
-    # add_monk_skin_tone(df,save_dir)
-    # show_monk_skin_tone_distribution(df)
-
-    # df1 = pd.read_csv('/Users/kuyuanhao/Documents/LABImage/class.csv')
-    # df2 = pd.read_csv('/Users/kuyuanhao/Documents/Customized/class.csv')
-    # merged_df = pd.concat([df1, df2], ignore_index=True)
-
-    # merged_df.to_csv('/Users/kuyuanhao/Documents/Data0421/class.csv', index=False)
-
+    base_dir = '/Users/kuyuanhao/Documents/Socialmedia/'
+    target_dir = '/Users/kuyuanhao/Documents/Socialmedia/'
+    preprocess_folder(base_dir,target_dir)

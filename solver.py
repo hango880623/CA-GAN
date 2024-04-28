@@ -331,7 +331,7 @@ class Solver(object):
                 x_fake = self.G(x_real, c_trg[:, 0, :])
                 out_src, out_cls, out_cls_1 = self.D(x_fake)
                 g_loss_fake = - torch.mean(out_src)
-                g_loss_cls = self.color_distance_loss(out_cls, label_org[:, 0, :]) # label[0] = lips lab color
+                g_loss_cls = self.color_distance_loss(out_cls, label_trg[:, 0, :]) # label[0] = lips lab color
                 g_loss_cls_1 = self.color_distance_loss(out_cls_1, label_org[:, 1, :]) # label[1] = skin lab color
 
                 # Target-to-original domain.
