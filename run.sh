@@ -14,14 +14,14 @@ python main.py \
     --train_label data/Data0421/label.csv \
     --test_label data/Data0421/label.csv \
     --sample_step 1000 \
-    --model_save_step 5000 \
+    --model_save_step 10000 \
     --lambda_cls 10 \
     --lambda_rec 200 \
     --lambda_gp 10 \
-    --lambda_bkg 5 \
+    --lambda_bkg 6 \
     --num_workers 2 \
     --num_iters_decay 20000 \
-    --resume_iters 570000 \
-    --num_iters 600000 \
-    --g_lr 0.000035 \
-    --d_lr 0.000035 
+    --resume_iters 750000 \
+    --num_iters 850000 \
+    --g_lr 0.00004 \
+    --d_lr 0.00004 

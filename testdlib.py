@@ -7,7 +7,18 @@ from torchvision import transforms as T
 from data_loader import MT
 
 import csv
+def get_color(image_path):
+    image = cv2.imread(image_path)
 
+    # Compute LAB color space
+    image_lab = cv2.cvtColor(np.float32(image)/ 255., cv2.COLOR_BGR2LAB)
+    # Compute median color from the extracted pixel values within the mask
+    mask = np.zeros(image.shape[:2], dtype="uint8")
+    median_color_lab = np.median(image_lab[np.where(mask == 255)], axis=0)
+    median_color_lab = [int(median_color_lab[0]), int(median_color_lab[1]), int(median_color_lab[2])]
+
+
+    return median_color_lab
 
 def get_skin_color(image_path):
     # Load the pre-trained face detector
@@ -205,22 +216,12 @@ def verify_label(train_label):
     image_cat = np.concatenate(image_list, axis=0)
     image_cat_org = np.concatenate(image_org, axis=0)
     cv2.imwrite("./rgb_color_lips_strip.jpg", np.concatenate([image_cat_org,image_cat], axis=1))
+
 if __name__ == '__main__':
-    get_lips_color("./data/LABImage/p_1_55_3000.JPG")
-    # get_skin_color("./data/mt/images/makeup/vFG55.png")
-    # save_filenames_to_txt("./mtdataset/images/makeup", "./mtdataset/makeup.txt")
-    # save_filenames_to_txt("./mtdataset/images/non-makeup", "./mtdataset/non-makeup.txt")
-    # test_MT()
-
-
-    # path  
-    # path ="./data/mt/images/makeup/vFG55.png"
-    # org = np.float32(cv2.imread(path))
-    # print(org[0])
-    # lab_image = cv2.cvtColor(org / 255., cv2.COLOR_BGR2LAB)
-    # lab_image = cv2.cvtColor(lab_image, cv2.COLOR_LAB2BGR)
-    # lab_image = (lab_image * 255).astype(np.uint8)
-    # print(lab_image[0])
-    verify_label("./data/mt/train_label.csv")
-    
+    # get_lips_color("./data/LABImage/p_1_55_3000.JPG")
+    folder = "/Users/kuyuanhao/Documents/Research Assistant/Interactive Organisms Lab/data/Canon/0502/target color"
+    files = ['s_55_5700.JPG','s_60_5700.JPG','s_65_5700.JPG','s_70_5700.JPG','s_80_5700.JPG']
+    for file in files:
+        lab = get_color(os.path.join(folder,file))
+        print(lab)
     

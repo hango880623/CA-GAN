@@ -9,7 +9,7 @@ import os
 import time
 import datetime
 
-from color_dlib import image_lab2bgr
+from color_dlib import image_lab2bgr, lipstick_color
 
 # from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 
@@ -445,13 +445,13 @@ class Solver(object):
             data_loader = self.mt_loader
 
         # Monk skin tone 1 to 10
-        test_file_names = ['vRX447.png','vRX490.png','vHX478.png','vFG58.png','vHX120.png','vFG333.png','XYH-082.png','8fb420459611cbe7e1e87f04abaa505f.png','Mypsd_2969_201012102201250011B.png','32-41039.png']
+        # test_file_names = ['vRX447.png','vRX490.png','vHX478.png','vFG58.png','vHX120.png','vFG333.png','XYH-082.png','8fb420459611cbe7e1e87f04abaa505f.png','Mypsd_2969_201012102201250011B.png','32-41039.png']
         color_pH = ['55','60','65','70','80']
-        test_lips_color = torch.tensor([[30, 32, 23],[32, 34, 22],[32, 32, 21],[32, 32, 23],[29, 24, 16]])
+        test_lips_color = torch.tensor(lipstick_color(4))
         test_lips_color = test_lips_color.float()
         with torch.no_grad():
 
-            for i, (x_real, c_org) in enumerate(data_loader):
+            for i, (x_real, c_org, filename, skintone) in enumerate(data_loader):
                 # create color strip for original lips
                 x_fixed = x_real.to(self.device)
                 c_fixed = c_org.to(self.device)
@@ -482,12 +482,14 @@ class Solver(object):
                 # generated image
                 fake_list = []
                 for index, lip_color in enumerate(test_lips_color):
-                    color_batches = lip_color.repeat(16, 1)
+                    color_batches = lip_color.repeat(len(filename), 1)
                     fake = self.denorm(self.G(x_fixed, color_batches).data.cpu())
                     fake_list.append(fake)
                     # save images
-                    sample_path = os.path.join(self.sample_dir, '{}-pH-{}.jpg'.format(i+1,color_pH[index]))
-                    save_image(fake, sample_path, nrow=1, padding=0)
+                    # save_image(fake, sample_path, nrow=1, padding=0)
+                    for j, image in enumerate(fake):
+                        sample_path = os.path.join(self.sample_dir, '{}-{}-{}.jpg'.format(skintone[j],color_pH[index],filename[j].split('.')[0]))
+                        save_image(image, sample_path, padding=0)
                 fake_concat = torch.cat(fake_list, dim=-1)
                 # original lips color
                 original_color = lip_color_org_tensor / 255.
@@ -503,8 +505,6 @@ class Solver(object):
                 x_concat = torch.cat(x_list, dim=3)
                 
                 final = torch.cat((color_concat, x_concat), dim=0)
-                sample_path = os.path.join(self.sample_dir, '{}-images.jpg'.format(i+1))
+                sample_path = os.path.join(self.sample_dir, '{}_images.jpg'.format(i+1))
                 save_image(final, sample_path, nrow=1, padding=0)
                 print('Saved real and fake images into {}...'.format(sample_path))
-                if i == 1:
-                    break

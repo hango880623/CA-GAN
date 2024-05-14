@@ -219,14 +219,21 @@ class MT(data.Dataset):
             for row in reader:
                 lips_colors = [int(x) for x in row[1].strip('[]').split(',')]
                 skin_colors = [int(x) for x in row[2].strip('[]').split(',')]
-                self.test_dataset.append([row[0],[lips_colors,skin_colors]])
+                self.test_dataset.append([row[0],[lips_colors,skin_colors],row[3]])
 
     def __getitem__(self, index):
         """Return one image and its corresponding attribute label."""
-        dataset = self.train_dataset if self.mode == 'train' else self.test_dataset
-        filename, label = dataset[index]
-        image = Image.open(os.path.join(self.image_dir, filename))
-        return self.transform(image), torch.FloatTensor(label)
+        if self.mode == 'train':
+            dataset = self.train_dataset
+            filename, label = dataset[index]
+            image = Image.open(os.path.join(self.image_dir, filename))
+            return self.transform(image), torch.FloatTensor(label)
+        else:
+            dataset = self.test_dataset
+            filename, label, skintone = dataset[index]
+            image = Image.open(os.path.join(self.image_dir, filename))
+            return self.transform(image), torch.FloatTensor(label), filename, skintone
+        
 
     def __len__(self):
         """Return the number of images."""

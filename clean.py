@@ -125,14 +125,15 @@ def crop_lips(image_dir, target_dir, file_name):
             print('OpenCV Error:', e)
             return [0, 0, 0, 0]
             
-def clean_file(image_dir, attribute_path = None):
+def clean_file(dir, attribute_path = None):
+    image_dir = dir+'image/'
     if attribute_path is None:
         all_file_names = os.listdir(image_dir)
     else:
         all_file_names = [line.rstrip() for line in open(attribute_path, 'r')]
     clean_file_names = []
     for i, filename in enumerate(tqdm(all_file_names)):
-        image_path = image_dir+'/'+filename
+        image_path = image_dir+filename
         if get_lips(image_path):
             clean_file_names.append(filename)
         else:
@@ -140,11 +141,12 @@ def clean_file(image_dir, attribute_path = None):
             os.remove(image_path)
 
     # Write clean filenames to the new attribute file makeup_clean.txt
-    with open(image_dir+'clean.txt', 'w') as file:
+    with open(dir+'clean.txt', 'w') as file:
         for filename in clean_file_names:
             file.write(filename + '\n')
 
-def build_crop_data(attribute_path, image_dir, target_dir):
+def build_crop_data(attribute_path, dir, target_dir):
+    image_dir = dir+'image/'
     all_file_names = [line.rstrip() for line in open(attribute_path, 'r')]
     crop_file_coordinate = {}
     for i, filename in enumerate(tqdm(all_file_names)):
@@ -152,19 +154,20 @@ def build_crop_data(attribute_path, image_dir, target_dir):
         crop_file_coordinate[filename] = coordinate
 
     # Write coordinates to a text file
-    with open(image_dir+'non-makeup_crop_coordinate.txt', 'w') as file:
+    with open(dir+'non-makeup_crop_coordinate.txt', 'w') as file:
         for filename, coordinate in crop_file_coordinate.items():
             file.write(f"{filename}: {coordinate}\n")
 
 if __name__ == '__main__':
-    # image_dir = './data/mt/images/makeup'
+    image_dir = './data/Data0506/'
     # attribute_path = './data/mt/makeup_clean.txt'
     # image_dir = '/Users/kuyuanhao/Documents/LABImage/'
     # clean_file(image_dir)
 
-    image_dir = './data/mt/images/non-makeup/'
-    attribute_path = './data/mt/non-makeup_clean.txt'
-    target_dir = './data/mt/images/non-makeup_cropped'
+    attribute_path = './data/Data0506/clean.txt'
+    target_dir = './data/Data0506/image_cropped'
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
     build_crop_data(attribute_path, image_dir,target_dir)
     
 
