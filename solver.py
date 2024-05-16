@@ -447,64 +447,65 @@ class Solver(object):
         # Monk skin tone 1 to 10
         # test_file_names = ['vRX447.png','vRX490.png','vHX478.png','vFG58.png','vHX120.png','vFG333.png','XYH-082.png','8fb420459611cbe7e1e87f04abaa505f.png','Mypsd_2969_201012102201250011B.png','32-41039.png']
         color_pH = ['55','60','65','70','80']
-        test_lips_color = torch.tensor(lipstick_color(4))
-        test_lips_color = test_lips_color.float()
-        with torch.no_grad():
+        for c in range(4):
+            test_lips_color = torch.tensor(lipstick_color(c))
+            test_lips_color = test_lips_color.float()
+            with torch.no_grad():
 
-            for i, (x_real, c_org, filename, skintone) in enumerate(data_loader):
-                # create color strip for original lips
-                x_fixed = x_real.to(self.device)
-                c_fixed = c_org.to(self.device)
-                test_lips_color = test_lips_color.to(self.device)
-                
-                lip_color_org_list = []
-                for index, lip_color in enumerate(c_fixed[:, 0, :]):
-                    color_image = torch.zeros_like(x_fixed[index])
-                    color_image[:] = lip_color[:, None, None]
-                    color_image = image_lab2bgr(color_image.cpu().numpy(), lip_color.cpu().numpy())
-                    lip_color_org_list.append(torch.from_numpy(color_image))
-                lip_color_org_tensor = torch.stack(lip_color_org_list)
+                for i, (x_real, c_org, filename, skintone) in enumerate(data_loader):
+                    # create color strip for original lips
+                    x_fixed = x_real.to(self.device)
+                    c_fixed = c_org.to(self.device)
+                    test_lips_color = test_lips_color.to(self.device)
+                    
+                    lip_color_org_list = []
+                    for index, lip_color in enumerate(c_fixed[:, 0, :]):
+                        color_image = torch.zeros_like(x_fixed[index])
+                        color_image[:] = lip_color[:, None, None]
+                        color_image = image_lab2bgr(color_image.cpu().numpy(), lip_color.cpu().numpy())
+                        lip_color_org_list.append(torch.from_numpy(color_image))
+                    lip_color_org_tensor = torch.stack(lip_color_org_list)
 
-                # create color strip for target lips multiple shades
-                color_images = [torch.zeros_like(x_fixed[0]).cpu(),torch.zeros_like(x_fixed[0]).cpu()]
-                for lip_color in test_lips_color:
-                    color_image = torch.zeros_like(x_fixed[0])
-                    lip_color = lip_color.resize(3, 1, 1)
-                    color_image[:] = lip_color
-                    color_image = image_lab2bgr(color_image.cpu().numpy(), lip_color.cpu().numpy())
-                    color_images.append(torch.from_numpy(color_image))
-                color_concat = torch.cat(color_images, dim=-1)
-                color_concat = color_concat.unsqueeze(0)
+                    # create color strip for target lips multiple shades
+                    color_images = [torch.zeros_like(x_fixed[0]).cpu(),torch.zeros_like(x_fixed[0]).cpu()]
+                    for lip_color in test_lips_color:
+                        color_image = torch.zeros_like(x_fixed[0])
+                        lip_color = lip_color.resize(3, 1, 1)
+                        color_image[:] = lip_color
+                        color_image = image_lab2bgr(color_image.cpu().numpy(), lip_color.cpu().numpy())
+                        color_images.append(torch.from_numpy(color_image))
+                    color_concat = torch.cat(color_images, dim=-1)
+                    color_concat = color_concat.unsqueeze(0)
 
-                x_list = []
-                # original image
-                original = self.denorm(x_fixed.data.cpu())
-                # generated image
-                fake_list = []
-                for index, lip_color in enumerate(test_lips_color):
-                    color_batches = lip_color.repeat(len(filename), 1)
-                    fake = self.denorm(self.G(x_fixed, color_batches).data.cpu())
-                    fake_list.append(fake)
-                    # save images
-                    # save_image(fake, sample_path, nrow=1, padding=0)
-                    for j, image in enumerate(fake):
-                        sample_path = os.path.join(self.sample_dir, '{}-{}-{}.jpg'.format(skintone[j],color_pH[index],filename[j].split('.')[0]))
-                        save_image(image, sample_path, padding=0)
-                fake_concat = torch.cat(fake_list, dim=-1)
-                # original lips color
-                original_color = lip_color_org_tensor / 255.
-                # # target lips color (single shade)
-                # target_color_single = lip_color_trg_tensor_single / 255.
-                color_concat = color_concat / 255.
+                    x_list = []
+                    # original image
+                    original = self.denorm(x_fixed.data.cpu())
+                    # generated image
+                    fake_list = []
+                    for index, lip_color in enumerate(test_lips_color):
+                        color_batches = lip_color.repeat(len(filename), 1)
+                        fake = self.denorm(self.G(x_fixed, color_batches).data.cpu())
+                        fake_list.append(fake)
+                        # save images
+                        # save_image(fake, sample_path, nrow=1, padding=0)
+                        for j, image in enumerate(fake):
+                            sample_path = os.path.join(self.sample_dir, '{}-{}-{}-{}.jpg'.format(skintone[j],color_pH[index],c,filename[j].split('.')[0]))
+                            save_image(image, sample_path, padding=0)
+                    fake_concat = torch.cat(fake_list, dim=-1)
+                    # original lips color
+                    original_color = lip_color_org_tensor / 255.
+                    # # target lips color (single shade)
+                    # target_color_single = lip_color_trg_tensor_single / 255.
+                    color_concat = color_concat / 255.
 
-                # append all images to x_list
-                x_list.append(original_color)
-                x_list.append(original)
-                x_list.append(fake_concat)
-                # x_list.append(target_color_single)
-                x_concat = torch.cat(x_list, dim=3)
-                
-                final = torch.cat((color_concat, x_concat), dim=0)
-                sample_path = os.path.join(self.sample_dir, '{}_images.jpg'.format(i+1))
-                save_image(final, sample_path, nrow=1, padding=0)
-                print('Saved real and fake images into {}...'.format(sample_path))
+                    # append all images to x_list
+                    x_list.append(original_color)
+                    x_list.append(original)
+                    x_list.append(fake_concat)
+                    # x_list.append(target_color_single)
+                    x_concat = torch.cat(x_list, dim=3)
+                    
+                    final = torch.cat((color_concat, x_concat), dim=0)
+                    sample_path = os.path.join(self.sample_dir, '{}-{}_images.jpg'.format(i+1, c))
+                    save_image(final, sample_path, nrow=1, padding=0)
+                    print('Saved real and fake images into {}...'.format(sample_path))

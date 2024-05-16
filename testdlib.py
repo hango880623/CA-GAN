@@ -14,7 +14,7 @@ def get_color(image_path):
     image_lab = cv2.cvtColor(np.float32(image)/ 255., cv2.COLOR_BGR2LAB)
     # Compute median color from the extracted pixel values within the mask
     mask = np.zeros(image.shape[:2], dtype="uint8")
-    median_color_lab = np.median(image_lab[np.where(mask == 255)], axis=0)
+    median_color_lab = np.median(image_lab[np.where(mask == 0)], axis=0)
     median_color_lab = [int(median_color_lab[0]), int(median_color_lab[1]), int(median_color_lab[2])]
 
 
@@ -220,7 +220,7 @@ def verify_label(train_label):
 if __name__ == '__main__':
     # get_lips_color("./data/LABImage/p_1_55_3000.JPG")
     folder = "/Users/kuyuanhao/Documents/Research Assistant/Interactive Organisms Lab/data/Canon/0502/target color"
-    files = ['s_55_5700.JPG','s_60_5700.JPG','s_65_5700.JPG','s_70_5700.JPG','s_80_5700.JPG']
+    files = ['s_55_5000.JPG','s_60_5000.JPG','s_65_5000.JPG','s_70_5000.JPG','s_80_5000.JPG']
     for file in files:
         lab = get_color(os.path.join(folder,file))
         print(lab)

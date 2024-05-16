@@ -7,8 +7,10 @@ from selenium import webdriver
 from selenium.webdriver import ChromeOptions
 from selenium.webdriver.common.by import By
 
-if __name__ == '__main__':
+import os
+import shutil
 
+def crawl_image():
     images_path = '/Users/kuyuanhao/Documents/Crawl/face/'  # enter your desired image path
 
     options = ChromeOptions()
@@ -49,3 +51,31 @@ if __name__ == '__main__':
             else:
                 img = Image.open(requests.get(src[i], stream=True).raw).convert('RGB')
                 img.save(images_path+key+"{}.png".format(i))
+
+import os
+import shutil
+
+def move_images(src, trg):
+    # Define the mapping of suffixes to target directories
+    classes = ['55', '60', '65', '70', '80']
+    
+    # Create target directories if they don't exist
+    if not os.path.exists(trg):
+        os.makedirs(trg)
+        for dir_name in classes:
+            os.makedirs(os.path.join(trg, 'lips', dir_name))
+    
+    # Move images to appropriate directories
+    for file in os.listdir(src):
+        if file.endswith('.jpg'):
+            print(file)
+            suffix = file.split('-')[1]
+            if suffix in classes:
+                target_dir = os.path.join(trg, 'lips', suffix)
+                shutil.move(os.path.join(src, file), os.path.join(target_dir, file))
+
+
+if __name__ == '__main__':
+    src = './cagan_Data0421_new/test'
+    trg = './cagan_Data0421_new/#5Lips'
+    move_images(src,trg)
